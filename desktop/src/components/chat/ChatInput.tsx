@@ -531,16 +531,17 @@ export function ChatInput() {
               value={gitInfo?.workDir || activeSession?.workDir || ''}
               onChange={async (newWorkDir) => {
                 if (!activeTabId) return
-                // Recreate session with new workDir
+                const oldId = activeTabId
                 const { deleteSession, createSession } = useSessionStore.getState()
-                const { closeTab, openTab } = useTabStore.getState()
+                const { replaceTabSession } = useTabStore.getState()
                 const { disconnectSession, connectToSession } = useChatStore.getState()
-                disconnectSession(activeTabId)
-                closeTab(activeTabId)
-                await deleteSession(activeTabId)
+                // Create new session first, then swap tab in-place
                 const newId = await createSession(newWorkDir)
-                openTab(newId, t('sidebar.newSession'))
+                disconnectSession(oldId)
+                replaceTabSession(oldId, newId)
                 connectToSession(newId)
+                // Clean up old session in background
+                deleteSession(oldId).catch(() => {})
               }}
             />
           )}
