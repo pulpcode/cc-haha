@@ -7,8 +7,10 @@
 import { useEffect } from 'react'
 import { open as shellOpen } from '@tauri-apps/plugin-shell'
 import { useHahaOAuthStore } from '../../stores/hahaOAuthStore'
+import { useTranslation } from '../../i18n'
 
 export function ClaudeOfficialLogin() {
+  const t = useTranslation()
   const { status, isLoading, error, fetchStatus, login, logout, stopPolling } =
     useHahaOAuthStore()
 
@@ -20,34 +22,52 @@ export function ClaudeOfficialLogin() {
   const handleLogin = async () => {
     try {
       const { authorizeUrl } = await login()
-      await shellOpen(authorizeUrl)
+      try {
+        await shellOpen(authorizeUrl)
+      } catch (err) {
+        console.error('[ClaudeOfficialLogin] shellOpen failed:', err)
+        useHahaOAuthStore.setState({
+          error: t('settings.claudeOfficialLogin.openBrowserFailed'),
+        })
+      }
     } catch {
-      // error 已经在 store 里,不做额外处理
+      // store.login() errors are already captured into store.error
     }
   }
 
   if (status === null) {
+    if (error) {
+      return (
+        <div className="text-xs text-[var(--color-error,#dc2626)]">
+          {t('settings.claudeOfficialLogin.errorPrefix')}{error}
+        </div>
+      )
+    }
     return (
-      <div className="text-xs text-[var(--color-text-tertiary)]">加载中…</div>
+      <div className="text-xs text-[var(--color-text-tertiary)]">
+        {t('common.loading')}
+      </div>
     )
   }
 
   if (status.loggedIn) {
     const subTypeLabel = status.subscriptionType
       ? status.subscriptionType.toUpperCase()
-      : '未知'
+      : t('settings.claudeOfficialLogin.subTypeUnknown')
     return (
       <div className="flex items-center gap-3 text-sm">
         <span className="text-[var(--color-success)]">
-          ✓ 已登录(Claude {subTypeLabel})
+          ✓ {t('settings.claudeOfficialLogin.loggedInPrefix')} {subTypeLabel})
         </span>
         <button
           type="button"
-          onClick={() => logout()}
+          onClick={logout}
           disabled={isLoading}
           className="px-3 py-1 text-xs rounded-md border border-[var(--color-border-separator)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-hover)] disabled:opacity-50 transition-colors"
         >
-          {isLoading ? '处理中…' : '登出'}
+          {isLoading
+            ? t('settings.claudeOfficialLogin.logoutProcessing')
+            : t('settings.claudeOfficialLogin.logoutButton')}
         </button>
       </div>
     )
@@ -56,20 +76,21 @@ export function ClaudeOfficialLogin() {
   return (
     <div className="flex flex-col gap-2">
       <div className="text-sm text-[var(--color-text-secondary)]">
-        使用官方 Claude 模型需要登录你的 Claude.ai 账号。点击下方按钮,浏览器会
-        打开 Claude 官方登录页面,授权后自动回到这里。
+        {t('settings.claudeOfficialLogin.intro')}
       </div>
       <button
         type="button"
         onClick={handleLogin}
-        disabled={isLoading || false}
+        disabled={isLoading}
         className="self-start px-4 py-2 text-sm rounded-md bg-[var(--color-accent,#c96342)] text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
-        {isLoading ? '正在启动…' : '登录 Claude 账号'}
+        {isLoading
+          ? t('settings.claudeOfficialLogin.loginStarting')
+          : t('settings.claudeOfficialLogin.loginButton')}
       </button>
       {error && (
         <div className="text-xs text-[var(--color-error,#dc2626)]">
-          错误:{error}
+          {t('settings.claudeOfficialLogin.errorPrefix')}{error}
         </div>
       )}
     </div>

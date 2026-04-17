@@ -52,6 +52,17 @@ export const zh: Record<TranslationKey, string> = {
   'settings.tab.general': '通用',
   'settings.tab.skills': '技能',
 
+  // Settings > Claude Official Login
+  'settings.claudeOfficialLogin.intro': '使用官方 Claude 模型需要登录你的 Claude.ai 账号。点击下方按钮,浏览器会打开 Claude 官方登录页面,授权后自动回到这里。',
+  'settings.claudeOfficialLogin.loginButton': '登录 Claude 账号',
+  'settings.claudeOfficialLogin.loginStarting': '正在启动…',
+  'settings.claudeOfficialLogin.logoutButton': '登出',
+  'settings.claudeOfficialLogin.logoutProcessing': '处理中…',
+  'settings.claudeOfficialLogin.loggedInPrefix': '已登录(Claude',
+  'settings.claudeOfficialLogin.subTypeUnknown': '未知',
+  'settings.claudeOfficialLogin.errorPrefix': '错误:',
+  'settings.claudeOfficialLogin.openBrowserFailed': '无法打开浏览器,请手动访问授权链接。',
+
   // Settings > Providers
   'settings.providers.title': '服务商',
   'settings.providers.description': '管理 API 服务商以访问模型。',

@@ -50,6 +50,17 @@ export const en = {
   'settings.tab.general': 'General',
   'settings.tab.skills': 'Skills',
 
+  // Settings > Claude Official Login
+  'settings.claudeOfficialLogin.intro': 'Using official Claude models requires signing in to your Claude.ai account. Click the button below to open the official Claude login page in your browser; you\'ll be returned here after authorizing.',
+  'settings.claudeOfficialLogin.loginButton': 'Sign in to Claude',
+  'settings.claudeOfficialLogin.loginStarting': 'Opening…',
+  'settings.claudeOfficialLogin.logoutButton': 'Sign out',
+  'settings.claudeOfficialLogin.logoutProcessing': 'Processing…',
+  'settings.claudeOfficialLogin.loggedInPrefix': 'Signed in (Claude',
+  'settings.claudeOfficialLogin.subTypeUnknown': 'Unknown',
+  'settings.claudeOfficialLogin.errorPrefix': 'Error: ',
+  'settings.claudeOfficialLogin.openBrowserFailed': 'Failed to open browser; please visit the authorization URL manually.',
+
   // Settings > Providers
   'settings.providers.title': 'Providers',
   'settings.providers.description': 'Manage API providers for model access.',
