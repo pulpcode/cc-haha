@@ -21,6 +21,7 @@ import {
 import { env } from '../utils/env.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import type { ImageDimensions } from '../utils/imageResizer.js'
+import { logForLearning } from '../utils/learningDebugLog.js'
 import { isModifierPressed, prewarmModifiers } from '../utils/modifiers.js'
 import { useDoublePress } from './useDoublePress.js'
 
@@ -263,6 +264,12 @@ export function useTextInput({
     if (env.terminal === 'Apple_Terminal' && isModifierPressed('shift')) {
       return cursor.insert('\n')
     }
+    logForLearning('useTextInput.handleEnter.submit', {
+      length: originalValue.length,
+      preview: originalValue.slice(0, 120),
+      multiline,
+      terminal: env.terminal,
+    })
     onSubmit?.(originalValue)
   }
 
