@@ -11,13 +11,35 @@ function getLearningDebugLogPath(): string {
   )
 }
 
-export function logForLearning(tag: string, data?: Record<string, unknown>): void {
+function formatArg(value: unknown): string {
+  if (typeof value === 'string') return value
+  try {
+    return jsonStringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function formatSlfjMessage(messageTemplate: string, args: unknown[]): string {
+  let index = 0
+  const message = messageTemplate.replaceAll("{}", () => {
+    if (index >= args.length) return '{}'
+    const value = formatArg(args[index])
+    index += 1
+    return value
+  })
+
+  if (index >= args.length) return message
+
+  return `${message} ${args.slice(index).map(formatArg).join(' ')}`
+}
+
+export function logForLearning(messageTemplate: string, ...args: unknown[]): void {
   const fs = getFsImplementation()
   const logPath = getLearningDebugLogPath()
   const entry = {
     timestamp: new Date().toISOString(),
-    tag,
-    data: data ?? {},
+    message: formatSlfjMessage(messageTemplate, args),
   }
   const line = `${jsonStringify(entry)}\n`
 

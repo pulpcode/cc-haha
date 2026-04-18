@@ -61,6 +61,9 @@ import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { isUndercover } from '../utils/undercover.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 
+import { logForLearning } from '../utils/learningDebugLog.js'
+
+
 // Dead code elimination: conditional imports for feature-gated modules
 /* eslint-disable @typescript-eslint/no-require-imports */
 const getCachedMCConfigForFRC = feature('CACHED_MICROCOMPACT')
@@ -131,6 +134,9 @@ function getHooksSection(): string {
 function getSystemRemindersSection(): string {
   return `- Tool results and user messages may include <system-reminder> tags. <system-reminder> tags contain useful information and reminders. They are automatically added by the system, and bear no direct relation to the specific tool results or user messages in which they appear.
 - The conversation has unlimited context through automatic summarization.`
+
+//-工具结果和用户消息可能包含 <system-reminder> 标签。 <system-reminder> 标签包含有用的信息和提醒。它们由系统自动添加，与它们出现的特定工具结果或用户消息没有直接关系。
+//-通过自动摘要，对话具有无限的上下文。
 }
 
 function getAntModelOverrideSection(): string | null {
@@ -463,6 +469,7 @@ export async function getSystemPrompt(
   const settings = getInitialSettings()
   const enabledTools = new Set(tools.map(_ => _.name))
 
+  //proactive： “主动式工作模式”，也就是 Claude 不只是等你一步一步下命令，而是会更像一个主动推进任务的代理
   if (
     (feature('PROACTIVE') || feature('KAIROS')) &&
     proactiveModule?.isProactiveActive()
@@ -556,6 +563,12 @@ ${CYBER_RISK_INSTRUCTION}`,
 
   const resolvedDynamicSections =
     await resolveSystemPromptSections(dynamicSections)
+
+  logForLearning(
+    'prompts.resolvedDynamicSections count={} resolvedDynamicSections={}',
+    resolvedDynamicSections.length,
+    resolvedDynamicSections,
+  )
 
   return [
     // --- Static content (cacheable) ---

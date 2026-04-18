@@ -264,12 +264,13 @@ export function useTextInput({
     if (env.terminal === 'Apple_Terminal' && isModifierPressed('shift')) {
       return cursor.insert('\n')
     }
-    logForLearning('useTextInput.handleEnter.submit', {
-      length: originalValue.length,
-      preview: originalValue.slice(0, 120),
+    logForLearning(
+      'useTextInput.handleEnter.submit length={} preview={} multiline={} terminal={}',
+      originalValue.length,
+      originalValue.slice(0, 120),
       multiline,
-      terminal: env.terminal,
-    })
+      env.terminal,
+    )
     onSubmit?.(originalValue)
   }
 
