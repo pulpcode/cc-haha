@@ -220,6 +220,7 @@ function getAutoMemBase(): string {
  * env vars / settings.json / CLAUDE_CONFIG_DIR are session-stable in
  * production and covered by per-test cache.clear.
  */
+//memoize 可以先用一句很朴素的话理解：“把函数算出来的结果先记住，下次同样条件再调用时，直接返回上次结果，不重新计算。”
 export const getAutoMemPath = memoize(
   (): string => {
     const override = getAutoMemPathOverride() ?? getAutoMemPathSetting()

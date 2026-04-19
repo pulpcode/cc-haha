@@ -416,6 +416,7 @@ export function buildSearchingPastContextSection(autoMemDir: string): string[] {
  *
  * Returns null when auto memory is disabled.
  */
+//loadMemoryPrompt()是关于主会话的project auto-memory
 export async function loadMemoryPrompt(): Promise<string | null> {
   const autoEnabled = isAutoMemoryEnabled()
 
@@ -473,6 +474,7 @@ export async function loadMemoryPrompt(): Promise<string | null> {
   }
 
   if (autoEnabled) {
+    // 这个路径通常是哪里？
     const autoDir = getAutoMemPath()
     // Harness guarantees the directory exists so the model can write without
     // checking. The prompt text reflects this ("already exists").

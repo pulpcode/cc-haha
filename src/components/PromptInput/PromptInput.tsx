@@ -121,6 +121,7 @@ import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js';
 import { useShowFastIconHint } from './useShowFastIconHint.js';
 import { useSwarmBanner } from './useSwarmBanner.js';
 import { isNonSpacePrintable, isVimModeEnabled } from './utils.js';
+import {logForLearning} from "src/utils/learningDebugLog";
 type Props = {
   debug: boolean;
   ideSelection: IDESelection | undefined;
@@ -222,7 +223,7 @@ function PromptInput({
   setShowBashesDialog,
   onExit,
   getToolUseContext,
-  onSubmit: onSubmitProp,
+  onSubmit: onSubmitProp, //上层传来的onSubmit改名为onSubmitProp，避免重名
   onAgentSubmit,
   isSearchingHistory,
   setIsSearchingHistory,
@@ -978,7 +979,13 @@ function PromptInput({
   const setSuggestionsState = useCallback((updater: typeof suggestionsState | ((prev: typeof suggestionsState) => typeof suggestionsState)) => {
     setSuggestionsStateRaw(prev => typeof updater === 'function' ? updater(prev) : updater);
   }, []);
+  //为什么上层REPL.tsx传来了一个onSubmit（被重命名为onSubmitProp）还要再包一层本地onSubmit？
+  // 因为需要一定的处理，准确地说：
+  // • onSubmitProp 负责最终业务提交
+  // • PromptInput 本地 onSubmit 负责“提交前的输入区交互规则”
+  // • 真正时机成熟后，再调用 onSubmitProp(...)
   const onSubmit = useCallback(async (inputParam: string, isSubmittingSlashCommand = false) => {
+    logForLearning("PromptInput onSubmit ...")
     inputParam = inputParam.trimEnd();
 
     // Don't submit if a footer indicator is being opened. Read fresh from
@@ -1009,12 +1016,24 @@ function PromptInput({
     const inputMatchesSuggestion = inputParam.trim() === '' || inputParam === suggestionText;
     if (inputMatchesSuggestion && suggestionText && !hasImages && !state.viewingAgentTaskId) {
       // If speculation is active, inject messages immediately as they stream
+      // speculation：猜测
+      // 这段逻辑的触发前提是：
+      // •当前输入为空，或者输入内容等于 suggestion
+      // •存在 suggestionText
+      // •没有图片附件
+      // •不是在 agent task 视图里
+      // 也就是说，系统判断：
+      // 用户很可能是在“接受当前建议”
+      //TODO：搞清楚“建议机制”？
       if (speculation.status === 'active') {
         markAccepted();
         // skipReset: resetSuggestion would abort the speculation before we accept it
         logOutcomeAtSubmission(suggestionText, {
           skipReset: true
         });
+        //因为 onSubmitProp 是 async 函数，返回 Promise。
+        // 前面加 void 的意思通常是：
+        // 我明确知道它返回 Promise，但这里不打算 await 它，也不打算把这个 Promise 再往外。
         void onSubmitProp(suggestionText, {
           setCursorOffset,
           clearBuffer,

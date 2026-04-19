@@ -71,6 +71,8 @@ export type UseTextInputProps = {
   dim?: (text: string) => string
 }
 
+//Hook 的本质：
+// 它是一些特殊的预设函数（通常以 use 开头），允许你在简单的函数组件中“钩入” React 的底层特性
 export function useTextInput({
   value: originalValue,
   onChange,
@@ -271,6 +273,8 @@ export function useTextInput({
       multiline,
       env.terminal,
     )
+    //可选调用链，如果 onSubmit 存在，而且不是 null/undefined就调用它
+    //obSubmit是一个回调函数参数，
     onSubmit?.(originalValue)
   }
 

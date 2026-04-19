@@ -61,7 +61,9 @@ import { loadMemoryPrompt } from '../memdir/memdir.js'
 import { isUndercover } from '../utils/undercover.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 
-import { logForLearning } from '../utils/learningDebugLog.js'
+import {
+  logForLearning,
+} from '../utils/learningDebugLog.js'
 
 
 // Dead code elimination: conditional imports for feature-gated modules
@@ -495,6 +497,7 @@ ${CYBER_RISK_INSTRUCTION}`,
     ].filter(s => s !== null)
   }
 
+  //注册名字为name的系统提示词片段，这个片段的内容怎么生成，由compute这个函数决定
   const dynamicSections = [
     systemPromptSection('session_guidance', () =>
       getSessionSpecificGuidanceSection(enabledTools, skillToolCommands),
@@ -533,6 +536,7 @@ ${CYBER_RISK_INSTRUCTION}`,
     ),
     // Numeric length anchors — research shows ~1.2% output token reduction vs
     // qualitative "be concise". Ant-only to measure quality impact first.
+      //ant 面向内部员工，能力更多、实验更多、调试更强、限制更少
     ...(process.env.USER_TYPE === 'ant'
       ? [
           systemPromptSection(
@@ -564,29 +568,46 @@ ${CYBER_RISK_INSTRUCTION}`,
   const resolvedDynamicSections =
     await resolveSystemPromptSections(dynamicSections)
 
-  logForLearning(
-    'prompts.resolvedDynamicSections count={} resolvedDynamicSections={}',
-    resolvedDynamicSections.length,
-    resolvedDynamicSections,
-  )
-
-  return [
+  //内容参见：docs/backup/system_prompt_section_result.md
+  //静态系统提示词骨架 + 可选边界标记 + 动态 section；
+  //不过这还不是调用链的终点。在 getSystemPrompt() 之后，代码里还会继续再包装一层
+  //
+  //为什么需要系统边界__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__？
+  //__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__ 的核心动机是最大化 Prompt Caching 的命中率，从而降低成本和延迟
+  //静态部分，相对固定，如果每次 API 调用都重新计算这一大段提示，代价极高，基于Anthropic API 的 Prompt Caching 功能，缓存发生在 Anthropic 的服务器端。
+  //Anthropic 服务器保存的是 KV Cache——模型在 attention 计算过程中产生的 Key 矩阵和 Value 矩阵。
+  // 这些是存储在 Anthropic 基础设施 GPU 显存中的大型数值张量。
+  // 当你发送请求时，服务器对 prompt 前缀做哈希，查找是否存在匹配的 KV Cache。
+  // 如果命中，这些张量会直接加载到模型的 attention 层——模型从缓存前缀结束的地方继续处理，就好像它刚刚读完那些 token 一样，无需重新计算。
+  //TODO： 学习Transformer模型和KV Cache
+  const systemPromptSectionResult =  [
     // --- Static content (cacheable) ---
-    getSimpleIntroSection(outputStyleConfig),
-    getSimpleSystemSection(),
+    getSimpleIntroSection(outputStyleConfig), //开场身份说明
+    getSimpleSystemSection(), //系统级总规则
     outputStyleConfig === null ||
     outputStyleConfig.keepCodingInstructions === true
-      ? getSimpleDoingTasksSection()
+      ? getSimpleDoingTasksSection() //做任务/改代码时的行为准则
       : null,
-    getActionsSection(),
-    getUsingYourToolsSection(enabledTools),
-    getSimpleToneAndStyleSection(),
-    getOutputEfficiencySection(),
+    getActionsSection(), //如何行动、如何推进任务： Executing actions with care
+    getUsingYourToolsSection(enabledTools), //工具使用说明： Read、Edit、Write、Glob、Grep
+    //使用 TaskCreate 工具分解和管理你的工作。这些工具对于规划工作和帮助用户跟踪进度很有用。一旦完成任务，立即将其标记为已完成。不要在批量完成多个任务后再一起标记。
+    // 你可以在单个响应中调用多个工具。如果你打算调用多个工具并且它们之间没有依赖关系，请并行进行所有独立的工具调用。尽可能最大化地使用并行工具调用以提高效率。但是，如果某些工具调用依赖于先前的调用来提供变量值，请不要并行调用这些工具，而是按顺序调用。例如，如果一个操作必须在另一个开始之前完成，请顺序运行。
+    getSimpleToneAndStyleSection(), //语气、输出风格要求
+    getOutputEfficiencySection(), //输出效率，直奔主题，如果你能用一句话说清楚，就不要用三句话。相比冗长的解释，优先使用简短、直接的句子。此规则不适用于代码或工具调用
     // === BOUNDARY MARKER - DO NOT MOVE OR REMOVE ===
-    ...(shouldUseGlobalCacheScope() ? [SYSTEM_PROMPT_DYNAMIC_BOUNDARY] : []),
+    ...(shouldUseGlobalCacheScope() ? [SYSTEM_PROMPT_DYNAMIC_BOUNDARY] : []), //系统边界__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__
+      //用来分开静态部分和动态部分
     // --- Dynamic content (registry-managed) ---
     ...resolvedDynamicSections,
   ].filter(s => s !== null)
+
+  logForLearning(
+      'prompts.getSystemPrompt array_length={} systemPromptSectionResult={}',
+      systemPromptSectionResult.length,
+      systemPromptSectionResult,
+      { maxLines: 10, maxChars: 4000 },
+  )
+  return  systemPromptSectionResult;
 }
 
 function getMcpInstructions(mcpClients: MCPServerConnection[]): string | null {

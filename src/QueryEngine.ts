@@ -106,6 +106,7 @@ import {
   isResultSuccessful,
   normalizeMessage,
 } from './utils/queryHelpers.js'
+import {logForLearning} from "src/utils/learningDebugLog";
 
 // Dead code elimination: conditional import for coordinator mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -234,7 +235,7 @@ export class QueryEngine {
       setSDKStatus,
       orphanedPermission,
     } = this.config
-
+    logForLearning("*submitMessage触发")
     this.discoveredSkillNames.clear()
     setCwd(cwd)
     const persistSession = !isSessionPersistenceDisabled()

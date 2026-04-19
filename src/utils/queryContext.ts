@@ -26,6 +26,7 @@ import {
   shouldEnableThinkingByDefault,
   type ThinkingConfig,
 } from './thinking.js'
+import { logForLearning } from './learningDebugLog.js'
 
 /**
  * Fetch the three context pieces that form the API cache-key prefix:
@@ -41,6 +42,18 @@ import {
  * injects coordinator userContext and memory-mechanics prompt on top;
  * sideQuestion's fallback uses the base result directly.
  */
+/*
+获取构成 API 缓存键前缀的三个上下文组成部分：
+系统提示词部分 (systemPrompt parts)、用户上下文 (userContext) 以及 系统上下文 (systemContext)。
+
+当设置了 自定义系统提示词 (customSystemPrompt) 时，将跳过默认的系统提示词构建（getSystemPrompt）和系统上下文获取（getSystemContext）
+—— 自定义提示词会完全替换默认提示词，而原本应附加在默认提示词后的系统上下文（systemContext）也会因为默认提示词未被使用而被忽略。
+
+调用者将通过以下方式组装最终的系统提示词：
+默认/自定义系统提示词 (default/customSystemPrompt) + 可选的额外内容 (optional extras) + 追加的系统提示词 (appendSystemPrompt)。
+查询引擎 (QueryEngine) 会在此基础上注入协调器的用户上下文和记忆机制提示词；而 侧边提问 (sideQuestion) 的回退方案则会直接使用基础结果。
+ */
+//QueryEngine 目前主要服务 headless/SDK 路径，REPL 还没完全切过去
 export async function fetchSystemPromptParts({
   tools,
   mainLoopModel,
@@ -58,6 +71,7 @@ export async function fetchSystemPromptParts({
   userContext: { [k: string]: string }
   systemContext: { [k: string]: string }
 }> {
+  logForLearning('fetchSystemPromptParts reached')
   const [defaultSystemPrompt, userContext, systemContext] = await Promise.all([
     customSystemPrompt !== undefined
       ? Promise.resolve([])
@@ -70,6 +84,8 @@ export async function fetchSystemPromptParts({
     getUserContext(),
     customSystemPrompt !== undefined ? Promise.resolve({}) : getSystemContext(),
   ])
+  //(systemPrompt, userContext, systemContext)这三者一起构成“请求前缀”，而这个前缀会影响 API 侧的缓存命中
+  logForLearning('fetchSystemPromptParts userContext={}', userContext)
   return { defaultSystemPrompt, userContext, systemContext }
 }
 
