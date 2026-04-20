@@ -431,8 +431,7 @@ export async function handlePromptSubmit(
  * All commands arrive as `queuedCommands`. First command gets full treatment
  * (attachments, ideSelection, pastedContents with image resizing). Commands 2-N
  * get `skipAttachments` to avoid duplicating turn-level context.
- */
-async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
+ */async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
   const {
     messages,
     mainLoopModel,
@@ -470,6 +469,17 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
   setAbortController(abortController)
 
   function makeContext(): ProcessUserInputContext {
+    // 这个方法的名字落后于职责，
+    // 这个上下文是先给 processUserInput 用的，不是先给 tool 用的
+    // processUserInput 在处理用户输入时，可能走三条路：
+    // 1. 普通 prompt，后面进入模型/tool 流程
+    // 2. slash command
+    // 3. local JSX command
+    // 后两种不只是工具调用，还需要本地命令相关能力，所以必须带上 LocalJSXCommandContext 里的字段
+    // 所以设计上更像是：
+    // * ToolUseContext: 模型/tool 执行层通用能力
+    // * LocalJSXCommandContext: 本地命令执行额外需要的 UI/会话能力
+    // * ProcessUserInputContext: “用户输入处理层”需要的并集
     const makeContextResult = getToolUseContext(messages, [], abortController, mainLoopModel)
     // dumpForLearning('makeContext-result', makeContextResult, {
     //   filePrefix: 'handlePromptSubmit',
@@ -525,6 +535,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
     // mutable slot would be clobbered at the detached closure's first
     // await by this function's synchronous return path. See state.ts.
     await runWithWorkload(turnWorkload, async () => {
+      // logForLearning("executeUserInput runWithWorkload commands:{}", commands)
       for (let i = 0; i < commands.length; i++) {
         const cmd = commands[i]!
         const isFirst = i === 0
@@ -612,6 +623,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
             ? primaryCmd.value
             : undefined
         const shouldCallBeforeQuery = primaryMode === 'prompt'
+        // 这个 onQuery 是从 REPL 传进来的
         await onQuery(
           newMessages,
           abortController,

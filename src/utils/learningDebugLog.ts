@@ -52,7 +52,7 @@ function makeDumpFileName(label: string, filePrefix?: string): string {
   const timestamp = new Date().toISOString().replaceAll(':', '-')
   const prefix = sanitizeFilePart(filePrefix ?? 'learning-dump')
   const safeLabel = sanitizeFilePart(label)
-  return `${timestamp}-${prefix}-${safeLabel}.log`
+  return `${timestamp}-${prefix}-${safeLabel}.json`
 }
 
 function formatArg(value: unknown): string {

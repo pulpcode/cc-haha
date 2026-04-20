@@ -152,6 +152,15 @@ export async function processUserInput({
 
   const appState = context.getAppState()
 
+  /**
+   * processUserInputBase(...) 做真正的输入分流
+   * 这里才是核心处理层，它会判断这次输入到底是：
+   * 普通文本 prompt
+   * slash command，比如 /xxx
+   * bash 命令
+   * 带图片的输入
+   * 带附件、IDE 选区、agent mention 的输入
+   */
   const result = await processUserInputBase(
     input,
     mode,
@@ -173,6 +182,7 @@ export async function processUserInput({
   )
   queryCheckpoint('query_process_user_input_base_end')
 
+  // 如果 processUserInputBase 说“不需要发起模型请求”，那就直接返回
   if (!result.shouldQuery) {
     return result
   }
@@ -181,12 +191,21 @@ export async function processUserInput({
   queryCheckpoint('query_hooks_start')
   const inputMessage = getContentText(input) || ''
 
+  // executeUserPromptSubmitHooks(...) 返回的是一个 AsyncGenerator，也就是“异步地产出一批结果”的对象，不是一次性返回一个数组
+  // 本质上是一个“提交后的前置拦截/增强层”
   for await (const hookResult of executeUserPromptSubmitHooks(
     inputMessage,
-    appState.toolPermissionContext.mode,
-    context,
-    context.requestPrompt,
+    appState.toolPermissionContext.mode, //这是当前权限模式，比如允许/询问/拒绝之类的运行上下文。
+    context, //这是执行上下文，里面有很多能力，比如拿 appState、abort signal、工具执行上下文等。hook 执行器会用它读取环境信息。
+    context.requestPrompt, //这是一个“需要时向用户发起提问”的能力。某些 hook 不是纯校验，它可能会在执行过程中请求额外输入，这个函数就是给它用的。
   )) {
+
+    //根据 hook 结果决定：
+    // * 继续 query
+    // * 停止
+    // * 拦截
+    // * 补充上下文
+
     // We only care about the result
     if (hookResult.message?.type === 'progress') {
       continue
@@ -225,6 +244,7 @@ export async function processUserInput({
       return result
     }
 
+    //如果 hook 提供了额外上下文，就作为 attachment 加到消息里
     // Collect additional contexts
     if (
       hookResult.additionalContexts &&
@@ -242,6 +262,7 @@ export async function processUserInput({
     }
 
     // TODO: Clean this up
+    // 如果 hook 产生了普通消息，也加入结果里
     if (hookResult.message) {
       switch (hookResult.message.attachment.type) {
         case 'hook_success':
@@ -263,7 +284,7 @@ export async function processUserInput({
       }
     }
   }
-  queryCheckpoint('query_hooks_end')
+  queryCheckpoint('query_hooks_end') //queryCheckpoint 是一个“性能埋点 / 时间打点”函数，用来给整条 query 链路记时间点，不参与业务逻辑本身。
 
   // Happy path: onQuery will clear userInputOnProcessing via startTransition
   // so it resolves in the same frame as deferredMessages (no flicker gap).
