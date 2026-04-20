@@ -31,6 +31,7 @@ import { processUserInput } from './processUserInput/processUserInput.js'
 import type { QueryGuard } from './QueryGuard.js'
 import { queryCheckpoint, startQueryProfile } from './queryProfiler.js'
 import { runWithWorkload } from './workloadContext.js'
+import { logForLearning } from './learningDebugLog.js'
 
 function exit(): void {
   gracefulShutdownSync(0)
@@ -117,9 +118,12 @@ export type HandlePromptSubmitParams = BaseExecutionParams & {
   skipSlashCommands?: boolean
 }
 
+//将原始输入变成待执行命令
 export async function handlePromptSubmit(
   params: HandlePromptSubmitParams,
 ): Promise<void> {
+  logForLearning("handlePromptSubmit ...")
+  //把传进来的 params 对象“拆包”成一堆局部变量，方便后面直接使用
   const {
     helpers,
     queryGuard,
@@ -143,11 +147,24 @@ export async function handlePromptSubmit(
     skipSlashCommands,
   } = params
 
+  // logForLearning("messages:{}", messages)
+
+  //helper本质上等于“把输入框相关的几个操作能力打包传进来”
   const { setCursorOffset, clearBuffer, resetHistory } = helpers
+
+  //queuedCommands 是“排队等待执行的命令列表”
+  //skipSlashCommands 是一个布尔标记，意思是：
+  // * false 或没传：如果输入以 / 开头，就按 slash command 处理
+  // * true：即使输入以 / 开头，也当普通文本发给模型，不触发本地命令/技能
+  //它主要是给远端桥接消息用的，比如移动端/CCR 发来 /model，不希望本地直接弹命令 UI，而是把它当普通内容处理
 
   // Queue processor path: commands are pre-validated and ready to execute.
   // Skip all input validation, reference parsing, and queuing logic.
+  // 这里是队列处理路径：输入的命令已经过验证，处于待命状态。
+  // 此处不执行任何输入检查、语法解析或进入队列的操作，直接运行。
   if (queuedCommands?.length) {
+    logForLearning("queue path hit, queued commands: {}", queuedCommands)
+    // 开始记这次请求的性能时间线
     startQueryProfile()
     await executeUserInput({
       queuedCommands,
@@ -171,6 +188,7 @@ export async function handlePromptSubmit(
     return
   }
 
+  //用户的实际输入
   const input = params.input ?? ''
   const mode = params.mode ?? 'prompt'
   const rawPastedContents = params.pastedContents ?? {}
@@ -210,13 +228,16 @@ export async function handlePromptSubmit(
     return
   }
 
+  // 处理粘贴进来的文本引用
   // Parse references and replace with actual content early, before queueing
   // or immediate-command dispatch, so queued commands and immediate commands
   // both receive the expanded text from when it was submitted.
+  // 展开占位符，得到真正要提交的输入
   const finalInput = expandPastedTextRefs(input, pastedContents)
   const pastedTextRefs = parseReferences(input).filter(
     r => pastedContents[r.id]?.type === 'text',
   )
+  // 统计这次粘贴了多少文本、总字节数是多少
   const pastedTextCount = pastedTextRefs.length
   const pastedTextBytes = pastedTextRefs.reduce(
     (sum, r) => sum + (pastedContents[r.id]?.content.length ?? 0),
@@ -245,15 +266,22 @@ export async function handlePromptSubmit(
           getCommandName(cmd) === commandName),
     )
 
+    // local-jsx表示这个命令不是发给模型，也不是跑 shell，而是在本地直接渲染一段 JSX 界面
+    // 比如 /model，很可能就是弹一个本地选择器 UI，而不是把 /model 这串字发给 LLM
+    // queryGuard 是一个“并发保护器”或者“执行状态锁”。作用是防止同一时间有两次输入执行流程一起跑
     if (
       immediateCommand &&
       immediateCommand.type === 'local-jsx' &&
       (queryGuard.isActive || isExternalLoading)
     ) {
+      // 命令是immediateCommand并且local-jsx类型，同时当前系统正忙：queryGuard.isActive || isExternalLoading
+      // 那不要把它当普通 prompt 去排队
       logEvent('tengu_immediate_command_executed', {
         commandName:
           immediateCommand.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
       })
+
+      logForLearning("immediateCommand 忙碌分支")
 
       // Clear input
       onInputChange('')
@@ -331,6 +359,7 @@ export async function handlePromptSubmit(
       params.abortController?.abort('interrupt')
     }
 
+    // 入队
     // Enqueue with string value + raw pastedContents. Images will be resized
     // at execution time when processUserInput runs (not baked in here).
     enqueue({
@@ -341,6 +370,14 @@ export async function handlePromptSubmit(
       skipSlashCommands,
       uuid,
     })
+    /**
+     * 消费队列的逻辑在在 useQueueProcessor.ts 和 queueProcessor.ts。
+     * 逻辑是：
+     * 监听 queryGuard 和队列快照
+     * 如果当前没有活跃 query
+     * 且队列里有内容
+     * 就调用 processQueueIfReady(...)
+     */
 
     onInputChange('')
     setCursorOffset(0)
@@ -364,6 +401,8 @@ export async function handlePromptSubmit(
     skipSlashCommands,
     uuid,
   }
+
+  logForLearning("handlePromptSubmit executeUserInput...cmd={}", cmd)
 
   await executeUserInput({
     queuedCommands: [cmd],
@@ -411,6 +450,17 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
     canUseTool,
     queuedCommands,
   } = params
+  
+  // canUseTool不是agent的可用tool列表，而是一个工具权限检查函数
+  // logForLearning(
+  //   "executeUserInput ... canUseToolType:{} canUseToolName:{} canUseToolPreview:{}",
+  //   typeof canUseTool,
+  //   typeof canUseTool === 'function' ? canUseTool.name || '(anonymous)' : '',
+  //   typeof canUseTool === 'function'
+  //     ? Function.prototype.toString.call(canUseTool).slice(0, 240)
+  //     : String(canUseTool),
+  // )
+
 
   // Note: paste references are already processed before calling this function
   // (either in handlePromptSubmit before queuing, or before initial execution).
@@ -420,7 +470,9 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
   setAbortController(abortController)
 
   function makeContext(): ProcessUserInputContext {
-    return getToolUseContext(messages, [], abortController, mainLoopModel)
+    const makeContextResult = getToolUseContext(messages, [], abortController, mainLoopModel)
+    logForLearning("makeContext Result:{}", makeContextResult)
+    return makeContextResult
   }
 
   // Wrap in try-finally so the guard is released even if processUserInput

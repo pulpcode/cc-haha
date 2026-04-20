@@ -605,7 +605,7 @@ ${CYBER_RISK_INSTRUCTION}`,
       'prompts.getSystemPrompt array_length={} systemPromptSectionResult={}',
       systemPromptSectionResult.length,
       systemPromptSectionResult,
-      { maxLines: 10, maxChars: 4000 },
+      { maxLines: 3, maxChars: 100 },
   )
   return  systemPromptSectionResult;
 }

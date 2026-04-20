@@ -1369,6 +1369,7 @@ function PromptInput({
     }
   }, [input, cursorOffset, pastedContents, pushToBuffer, trackAndSetInput, addNotification]);
 
+  // 处理stash功能
   // Handler for chat:stash - stash/unstash prompt
   const handleStash = useCallback(() => {
     if (input.trim() === '' && stashedPrompt !== undefined) {

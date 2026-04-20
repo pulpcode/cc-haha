@@ -346,8 +346,10 @@ export function assembleToolPool(
   permissionContext: ToolPermissionContext,
   mcpTools: Tools,
 ): Tools {
+  // 取内置tools
   const builtInTools = getTools(permissionContext)
 
+  // 合并MCP tools，按deny rules过滤
   // Filter out MCP tools that are in the deny list
   const allowedMcpTools = filterToolsByDenyRules(mcpTools, permissionContext)
 

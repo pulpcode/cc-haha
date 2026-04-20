@@ -3148,17 +3148,19 @@ export function REPL({
     // exchange (matches OpenCode's auto-scroll behavior).
     repinScroll();
 
-    logForLearning("REPL onSubmit callback ...")
+    logForLearning("REPL onSubmit ...")
 
     // Resume loop mode if paused
     if (feature('PROACTIVE') || feature('KAIROS')) {
       proactiveModule?.resumeProactive();
     }
 
+    //处理immediate slash commands
     // Handle immediate commands - these bypass the queue and execute right away
     // even while Claude is processing. Commands opt-in via `immediate: true`.
     // Commands triggered via keybindings are always treated as immediate.
     if (!speculationAccept && input.trim().startsWith('/')) {
+      logForLearning("REPL onSubmit... 处理immediate slash commands")
       // Expand [Pasted text #N] refs so immediate commands (e.g. /btw) receive
       // the pasted content, not the placeholder. The non-immediate path gets
       // this expansion later in handlePromptSubmit.
@@ -3286,6 +3288,18 @@ export function REPL({
       return;
     }
 
+    // Idle-return: 长时间空闲后重新回来时的回流提醒/拦截
+    // 判断：
+    // 你是不是离开了很久
+    // 当前会话是不是已经很大
+    // 要不要提示你“重新开一个更干净的回合”
+    // 它的使用场景很像：
+    // 你上午开着 Claude Code 跑了很多轮
+    // 下午回来又想继续输入
+    // 系统会判断这是不是一个“应该另起炉灶”的时机
+    // 对 Claude Code 来说，这是一种“会话卫生”机制，避免你在一个已经很臃肿的上下文里越聊越糊。
+
+    // 大括号扩起来，控制内部变量的访问权限、使逻辑分区独立
     // Idle-return: prompt returning users to start fresh when the
     // conversation is large and the cache is cold. tengu_willow_mode
     // controls treatment: "dialog" (blocking), "hint" (notification), "off".
@@ -3308,12 +3322,24 @@ export function REPL({
         }
       }
     }
+    
+    //这是“提交历史 / 输入历史”。
+    // 在 Claude Code 里，history 不是模型上下文本身，而更像“用户输入过什么”的本地记录。你在 REPL.tsx (line 3312) 能看到直接提交时会 addToHistory(...)。
+    //它主要服务这些使用模式：
+    // * 用上下方向键找回以前输入过的 prompt
+    // * bash 模式下找回以前输过的 shell 命令
+    // * 快速重提一个曾经问过的问题或执行过的命令
+    // 所以它和 transcript 的区别是：
+    // * transcript：完整会话消息，给模型看的主上下文
+    // * history：偏输入法体验，给用户自己回溯输入用
 
     // Add to history for direct user submissions.
     // Queued command processing (executeQueuedInput) doesn't call onSubmit,
     // so notifications and already-queued user input won't be added to history here.
     // Skip history for keybinding-triggered commands (user didn't type the command).
     if (!options?.fromKeybinding) {
+      //如果这次提交其实是“快捷键代你触发了一个命令”，那就不要记进这类历史，避免污染用户输入记录
+      logForLearning("add ToHistory ...")
       addToHistory({
         display: speculationAccept ? input : prependModeCharacterToInput(input, inputMode),
         pastedContents: speculationAccept ? {} : pastedContents
@@ -3321,6 +3347,7 @@ export function REPL({
       // Add the just-submitted command to the front of the ghost-text
       // cache so it's suggested immediately (not after the 60s TTL).
       if (inputMode === 'bash') {
+        //bash 模式额外写入 shell 历史缓存
         prependToShellHistoryCache(input.trim());
       }
     }
@@ -3405,6 +3432,13 @@ export function REPL({
       return;
     }
 
+
+    //在普通本地 REPL 模式里，输入会在当前进程里走完整链路：处理输入、组消息、发模型、执行工具、更新 UI。
+    // 但在 remote mode 下，当前这个 REPL 更像一个前端壳子，
+    // 真正处理会话的可能是远端进程或另一端会话，
+    // 所以它不会按本地逻辑把所有内容直接送进 handlePromptSubmit -> query()，
+    // 而是把消息通过远程通道发送出去
+    
     // Remote mode: send input via stream-json instead of local query.
     // Permission requests from the remote are bridged into toolUseConfirmQueue
     // and rendered using the standard PermissionRequest component.

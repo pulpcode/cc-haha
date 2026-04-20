@@ -59,6 +59,7 @@ import {
   replaceUltraplanKeyword,
 } from '../ultraplan/keyword.js'
 import { processTextPrompt } from './processTextPrompt.js'
+import { logForLearning } from '../learningDebugLog.js'
 export type ProcessUserInputContext = ToolUseContext & LocalJSXCommandContext
 
 export type ProcessUserInputBaseResult = {
@@ -138,6 +139,7 @@ export async function processUserInput({
   isMeta?: boolean
   skipAttachments?: boolean
 }): Promise<ProcessUserInputBaseResult> {
+  // logForLearning("processUserInput... context:{}", context)
   const inputString = typeof input === 'string' ? input : null
   // Immediately show the user input prompt while we are still processing the input.
   // Skip for isMeta (system-generated prompts like scheduled tasks) — those
