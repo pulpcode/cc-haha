@@ -31,7 +31,7 @@ import { processUserInput } from './processUserInput/processUserInput.js'
 import type { QueryGuard } from './QueryGuard.js'
 import { queryCheckpoint, startQueryProfile } from './queryProfiler.js'
 import { runWithWorkload } from './workloadContext.js'
-import { logForLearning } from './learningDebugLog.js'
+import { dumpForLearning, logForLearning } from './learningDebugLog.js'
 
 function exit(): void {
   gracefulShutdownSync(0)
@@ -471,7 +471,10 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
 
   function makeContext(): ProcessUserInputContext {
     const makeContextResult = getToolUseContext(messages, [], abortController, mainLoopModel)
-    logForLearning("makeContext Result:{}", makeContextResult)
+    // dumpForLearning('makeContext-result', makeContextResult, {
+    //   filePrefix: 'handlePromptSubmit',
+    // })
+    // logForLearning('makeContext dump created')
     return makeContextResult
   }
 
