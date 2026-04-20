@@ -33,7 +33,7 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          ALL='[{"platform":"macos-latest","rust_target":"aarch64-apple-darwin","tauri_args":"--target aarch64-apple-darwin","bundles":"app,dmg","label":"macOS-ARM64","artifact_name":"macos-arm64"},{"platform":"macos-latest","rust_target":"x86_64-apple-darwin","tauri_args":"--target x86_64-apple-darwin","bundles":"app,dmg","label":"macOS-x64","artifact_name":"macos-x64"},{"platform":"windows-latest","rust_target":"x86_64-pc-windows-msvc","tauri_args":"","bundles":"nsis,msi","label":"Windows-x64","artifact_name":"windows-x64"},{"platform":"ubuntu-22.04","rust_target":"x86_64-unknown-linux-gnu","tauri_args":"","bundles":"deb,appimage","label":"Linux-x64","artifact_name":"linux-x64"},{"platform":"ubuntu-22.04-arm","rust_target":"aarch64-unknown-linux-gnu","tauri_args":"","bundles":"deb,appimage","label":"Linux-ARM64","artifact_name":"linux-arm64"}]'
+          ALL='[{"platform":"macos-latest","rust_target":"aarch64-apple-darwin","tauri_args":"--target aarch64-apple-darwin","bundles":"app,dmg","label":"macOS-ARM64","artifact_name":"macos-arm64"},{"platform":"macos-latest","rust_target":"x86_64-apple-darwin","tauri_args":"--target x86_64-apple-darwin","bundles":"app,dmg","label":"macOS-x64","artifact_name":"macos-x64"},{"platform":"windows-latest","rust_target":"x86_64-pc-windows-msvc","tauri_args":"","bundles":"nsis,msi","label":"Windows-x64","artifact_name":"windows-x64"},{"platform":"ubuntu-22.04","rust_target":"x86_64-unknown-linux-gnu","tauri_args":"","bundles":"deb","label":"Linux-x64","artifact_name":"linux-x64"},{"platform":"ubuntu-22.04-arm","rust_target":"aarch64-unknown-linux-gnu","tauri_args":"","bundles":"deb","label":"Linux-ARM64","artifact_name":"linux-arm64"}]'
 
           SELECTED="${{ inputs.platforms }}"
           if [ "$SELECTED" = "all" ]; then
@@ -72,6 +72,8 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       # ── 系统依赖 (Linux) ─────────────────────────────────────
+      # libfuse2 是 AppImage 运行时依赖：linuxdeploy 工具链本身是 AppImage 格式，
+      # 运行时需要 libfuse2，Ubuntu 22.04 默认未安装。
       - name: Install Linux dependencies
         if: contains(matrix.platform, 'ubuntu')
         run: |
@@ -81,7 +83,8 @@ jobs:
             libxdo-dev libssl-dev \
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
-            librsvg2-dev patchelf
+            librsvg2-dev patchelf \
+            libfuse2
 
       # ── Bun ──────────────────────────────────────────────────
       - name: Setup Bun
@@ -164,14 +167,14 @@ jobs:
 
           echo "Searching for artifacts in: $SEARCH_DIR"
           if [ -d "$SEARCH_DIR" ]; then
-            find "$SEARCH_DIR" -type f \( \
-              -name "*.dmg" -o -name "*.app" -o \
-              -name "*.exe" -o -name "*.msi" -o \
-              -name "*.deb" -o -name "*.AppImage" -o \
-              -name "*.zip" \
-            \) | while read -r f; do
+            find "$SEARCH_DIR" \
+              \( -type f \( \
+                -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o \
+                -name "*.deb" -o -name "*.AppImage" -o -name "*.zip" \
+              \) \) -o \
+              \( -type d -name "*.app" \) | while read -r f; do
               echo "  Copying: $(basename "$f")"
-              cp "$f" "$STAGING/"
+              cp -R "$f" "$STAGING/"
             done
           fi
 

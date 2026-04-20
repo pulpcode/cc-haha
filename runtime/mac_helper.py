@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import ctypes
 import json
 import os
 import subprocess
@@ -28,6 +29,7 @@ from Quartz import (
     CGRectContainsPoint,
     CGRectIntersection,
     CGPointMake,
+    CGPreflightScreenCaptureAccess,
     kCGNullWindowID,
     kCGWindowBounds,
     kCGWindowIsOnscreen,
@@ -174,6 +176,33 @@ def run_osascript(script: str) -> str:
     return result.stdout.strip()
 
 
+def applescript_modifier(name: str) -> str:
+    if name == "command":
+        return "command down"
+    if name == "option":
+        return "option down"
+    if name == "shift":
+        return "shift down"
+    if name == "ctrl":
+        return "control down"
+    if name == "fn":
+        return "fn down"
+    raise ValueError(f"Unsupported AppleScript modifier: {name}")
+
+
+def send_keystroke_via_osascript(character: str, modifiers: list[str] | None = None) -> None:
+    escaped = character.replace("\\", "\\\\").replace('"', '\\"')
+    if modifiers:
+        modifier_expr = ", ".join(applescript_modifier(m) for m in modifiers)
+        script = (
+            'tell application "System Events" to keystroke '
+            f'"{escaped}" using {{{modifier_expr}}}'
+        )
+    else:
+        script = f'tell application "System Events" to keystroke "{escaped}"'
+    run_osascript(script)
+
+
 def get_displays() -> list[dict[str, Any]]:
     max_displays = 32
     err, active, count = CGGetActiveDisplayList(max_displays, None, None)
@@ -232,7 +261,16 @@ def choose_display(display_id: int | None) -> dict[str, Any]:
     raise RuntimeError(f"Unknown display: {display_id}")
 
 
+def ensure_screen_recording_permission() -> None:
+    """No-op: CGPreflightScreenCaptureAccess is unreliable for child processes
+    (returns False even when the parent app has TCC permission), and any actual
+    capture attempt triggers a macOS popup on newer versions. Let the actual
+    capture call handle errors instead."""
+    pass
+
+
 def capture_display(display_id: int | None, resize: tuple[int, int] | None = None) -> dict[str, Any]:
+    ensure_screen_recording_permission()
     display = choose_display(display_id)
     monitor = {
         "left": display["originX"],
@@ -262,6 +300,7 @@ def capture_display(display_id: int | None, resize: tuple[int, int] | None = Non
 
 
 def capture_region(region: dict[str, int], resize: tuple[int, int] | None = None) -> dict[str, Any]:
+    ensure_screen_recording_permission()
     with mss.mss() as sct:
         raw = sct.grab(region)
         image = Image.frombytes("RGB", raw.size, raw.rgb)
@@ -461,17 +500,82 @@ def write_clipboard(text: str) -> None:
     pb.setString_forType_(text, NSPasteboardTypeString)
 
 
-def check_permissions() -> dict[str, bool]:
-    accessibility = True
+def paste_clipboard() -> None:
+    send_keystroke_via_osascript("v", ["command"])
+
+
+def detect_screen_recording_permission() -> bool | None:
+    """Best-effort passive screen-recording probe with no system prompt.
+
+    `CGPreflightScreenCaptureAccess()` is fast and explicit when it returns
+    True, but on child processes launched by a TCC-authorized app bundle it can
+    still return False. As a fallback, inspect the visible window list: Apple
+    only exposes other apps' window titles when Screen Recording access is
+    granted. If we can see at least one title, treat the permission as granted.
+    If we can inspect visible windows but every title is blank, treat it as not
+    granted. If window enumeration itself is unavailable, return None.
+    """
+
     try:
-        run_osascript('tell application "System Events" to get name of first process')
+        if CGPreflightScreenCaptureAccess():
+            return True
     except Exception:
-        accessibility = False
-    screen_recording = True
+        pass
+
     try:
-        capture_display(None)
+        windows = CGWindowListCopyWindowInfo(
+            kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements,
+            kCGNullWindowID,
+        )
     except Exception:
-        screen_recording = False
+        return None
+
+    eligible_windows = 0
+    for window in windows or []:
+        if int(window.get(kCGWindowLayer, 0)) != 0:
+            continue
+        if not bool(window.get(kCGWindowIsOnscreen, True)):
+            continue
+
+        bounds = window.get(kCGWindowBounds) or {}
+        width = int(bounds.get("Width", 0))
+        height = int(bounds.get("Height", 0))
+        if width <= 1 or height <= 1:
+            continue
+
+        eligible_windows += 1
+        if (window.get(kCGWindowName, "") or "").strip():
+            return True
+
+    if eligible_windows > 0:
+        return False
+    return None
+
+
+def detect_accessibility_permission() -> bool:
+    """
+    Use the official macOS Accessibility trust API.
+
+    The previous System Events / AppleScript probe was too weak: it could
+    succeed even when the current helper process was not actually trusted for
+    input control, which led the desktop UI to report Accessibility as granted
+    while mouse/keyboard control still failed at runtime.
+    """
+    framework_path = "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices"
+    try:
+        application_services = ctypes.CDLL(framework_path)
+        application_services.AXIsProcessTrusted.restype = ctypes.c_bool
+        application_services.AXIsProcessTrusted.argtypes = []
+        return bool(application_services.AXIsProcessTrusted())
+    except Exception:
+        # Fail closed: if the trust API can't be queried, treat accessibility
+        # as unavailable instead of reporting a misleading success state.
+        return False
+
+
+def check_permissions() -> dict[str, bool | None]:
+    accessibility = detect_accessibility_permission()
+    screen_recording = detect_screen_recording_permission()
     return {
         "accessibility": accessibility,
         "screenRecording": screen_recording,
@@ -504,7 +608,15 @@ def scroll(x: int, y: int, delta_x: int, delta_y: int) -> None:
 def key_action(sequence: str, repeat: int = 1) -> None:
     parts = [normalize_key(part) for part in sequence.split("+") if part.strip()]
     for _ in range(max(1, repeat)):
-        if len(parts) == 1:
+        if parts == ["command", "v"]:
+            paste_clipboard()
+        elif parts == ["command", "a"]:
+            send_keystroke_via_osascript("a", ["command"])
+        elif parts == ["command", "c"]:
+            send_keystroke_via_osascript("c", ["command"])
+        elif parts == ["command", "x"]:
+            send_keystroke_via_osascript("x", ["command"])
+        elif len(parts) == 1:
             pyautogui.press(parts[0])
         else:
             pyautogui.hotkey(*parts, interval=0.02)
@@ -646,6 +758,10 @@ def main() -> int:
             return 0
         if command == "write_clipboard":
             write_clipboard(str(payload.get("text") or ""))
+            json_output({"ok": True, "result": True})
+            return 0
+        if command == "paste_clipboard":
+            paste_clipboard()
             json_output({"ok": True, "result": True})
             return 0
         error_output(f"Unknown command: {command}", code="bad_command")

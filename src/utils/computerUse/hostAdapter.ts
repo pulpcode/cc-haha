@@ -7,6 +7,7 @@ import { logForDebugging } from '../debug.js'
 import { COMPUTER_USE_MCP_SERVER_NAME } from './common.js'
 import { createCliExecutor } from './executor.js'
 import { getChicagoEnabled, getChicagoSubGates } from './gates.js'
+import { normalizeOsPermissions } from './permissions.js'
 import { callPythonHelper } from './pythonBridge.js'
 
 class DebugLogger implements Logger {
@@ -39,8 +40,9 @@ export function getComputerUseHostAdapter(): ComputerUseHostAdapter {
       getHideBeforeActionEnabled: () => getChicagoSubGates().hideBeforeAction,
     }),
     ensureOsPermissions: async () => {
-      const perms = await callPythonHelper<{ accessibility: boolean; screenRecording: boolean }>('check_permissions', {})
-      return perms.accessibility && perms.screenRecording
+      const rawPerms = await callPythonHelper<{ accessibility: boolean; screenRecording: boolean | null }>('check_permissions', {})
+      const perms = normalizeOsPermissions(rawPerms)
+      return perms.granted
         ? { granted: true as const }
         : { granted: false as const, accessibility: perms.accessibility, screenRecording: perms.screenRecording }
     },

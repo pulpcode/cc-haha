@@ -1,83 +1,47 @@
-# Claude Code Channel 系统文档
+# Channel 源码研究
 
-> 通过 IM 平台远程控制 Claude Code Agent 的完整技术解析
+> 这里讲的是 Claude Code 原生的 Channel / MCP 体系。  
+> 如果你要配置当前桌面版的 Telegram / 飞书接入，请先看 [IM 接入文档](../im/)。
 
----
+## 这组文档是干什么的
+
+这个仓库当前实际可用的 IM 接入方案，是 `Desktop Webapp + adapters/* + /api/adapters + /ws/:sessionId`。
+
+`docs/channel/` 保留的价值主要是：
+
+- 解释上游 Claude Code 的原生 Channel 机制
+- 记录历史上为什么没有直接沿用那套机制做当前 IM 接入
+- 作为后续架构演进时的参考资料
 
 ## 文档目录
 
-### [01-channel-system.md](./01-channel-system.md) — Channel 系统架构解析
+### [01-channel-system.md](./01-channel-system.md)
 
-从源码视角深度剖析 Claude Code Channel 系统的设计与实现，涵盖：
+从源码视角分析 Claude Code 原始 Channel 系统，包括：
 
-- **什么是 Channel**：IM 集成的核心概念、MCP 协议基础
-- **整体架构**：消息流转全链路、组件关系
-- **消息协议**：入站通知、XML 封装、出站工具调用
-- **六层访问控制**：能力声明 → 运行时开关 → OAuth 认证 → 组织策略 → 会话白名单 → 插件审批
-- **权限中继系统**：远程审批工具执行、5 字母请求 ID、多源竞争
-- **插件架构**：Channel 插件清单声明、用户配置流、作用域命名
-- **UI 组件**：终端消息渲染、状态通知、开发者警告对话框
-- **安全设计**：防 XML 注入、marketplace 验证、信任边界分析
+- Channel 的概念模型
+- MCP 通知和工具出入站协议
+- 六层门控与权限中继
+- Plugin Channel 的注册和安全边界
 
-**适合人群**：想了解 AI Agent IM 集成架构的开发者、架构师、插件作者
+### [02-im-gateway-proposal.md](./02-im-gateway-proposal.md)
 
----
+这是历史方案设计文档，记录了从 `IM Gateway` 设想演进到“独立 Adapter 直连 `/ws/:sessionId`”的过程。
 
-## 配图说明
+它适合回答：
 
-所有配图采用深色背景（#1a1a2e）+ Anthropic 品牌橙铜色（#D97757）风格。
+- 为什么最后没有走完整 Gateway
+- 为什么当前实现选择了 `adapters/*`
+- 设计阶段曾经考虑过哪些替代方案
 
-| 图片 | 说明 | 所属文档 |
-|------|------|----------|
-| `01-channel-overview.png` | Channel 系统架构总览 — 组件关系全景 | 架构解析 |
-| `02-message-flow.png` | 消息流转全链路 — IM → Agent → IM | 架构解析 |
-| `03-access-control.png` | 六层访问控制 — 层层递进的安全门 | 架构解析 |
-| `04-permission-relay.png` | 权限中继系统 — 远程审批流程 | 架构解析 |
+## 相关入口
 
----
+- [IM 接入总览](../im/)
+- [Telegram 接入](../im/telegram)
+- [飞书接入](../im/feishu)
 
-## 快速开始
+## 适合谁看
 
-### 用户
-
-1. 阅读 [Channel 系统架构解析](./01-channel-system.md)
-2. 了解如何通过 `--channels` 启动 IM 集成
-3. 理解不同平台（Telegram、Feishu、Discord）的接入方式
-
-### 插件开发者
-
-1. 阅读架构解析中的 [插件架构](./01-channel-system.md#七插件-channel-架构) 章节
-2. 了解 `plugin.json` 中 Channel 声明格式
-3. 实现 MCP Server 的 `notifications/claude/channel` 协议
-4. 查看源码位置：
-   - `src/services/mcp/channelNotification.ts` — 核心门控与消息封装
-   - `src/services/mcp/channelPermissions.ts` — 权限中继系统
-   - `src/services/mcp/channelAllowlist.ts` — 白名单管理
-   - `src/utils/plugins/mcpPluginIntegration.ts` — 插件 MCP 集成
-   - `src/utils/plugins/schemas.ts` — 插件清单 Channel 声明 Schema
-
----
-
-## 核心概念速查
-
-| 概念 | 说明 |
-|------|------|
-| **Channel** | 一个声明了 `claude/channel` 能力的 MCP Server，可推送 IM 消息到 Agent |
-| **Channel Entry** | `--channels` 参数解析后的条目，分 plugin 和 server 两种 |
-| **Channel Gate** | 六层访问控制门，决定是否注册通知处理器 |
-| **Permission Relay** | 将工具执行审批提示转发到 IM 平台的机制 |
-| **Channel Plugin** | 在 `plugin.json` 中声明 `channels` 字段的插件 |
-| **Scoped Name** | 插件服务器的作用域名称，格式 `plugin:{pluginName}:{serverName}` |
-| **Short Request ID** | 5 字母权限请求标识符，基于 FNV-1a 哈希生成 |
-| **Channel Tag** | `<channel>` XML 标签，封装来自 IM 的消息内容和元数据 |
-| **Dev Channels** | 通过 `--dangerously-load-development-channels` 加载的本地开发频道 |
-| **tengu_harbor** | GrowthBook 运行时特性开关，控制 Channel 功能总开关 |
-
----
-
-## 相关资源
-
-- [Claude Code Haha 主页](/)
-- [Agent 框架解析](/agent/03-agent-framework)
-- [Skills 系统文档](/skills/01-usage-guide)
-- [GitHub Issues](https://github.com/NanmiCoder/cc-haha/issues)
+- 想研究 Claude Code 原生 IM / Channel 思路的开发者
+- 想理解当前仓库 IM 实现为什么没有直接复用 Channel 的贡献者
+- 想做架构对比和二次设计的人

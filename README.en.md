@@ -1,7 +1,7 @@
 # Claude Code Haha
 
 <p align="center">
-  <img src="docs/images/banner.jpg" alt="Claude Code Haha Banner" width="800">
+  <img src="docs/images/logo-horizontal.jpg" alt="Claude Code Haha" width="480">
 </p>
 
 <div align="center">
@@ -17,12 +17,10 @@
 
 </div>
 
-A **locally runnable version** repaired from the leaked Claude Code source, with support for any Anthropic-compatible API endpoint such as MiniMax and OpenRouter.
-
-> The original leaked source does not run as-is. This repository fixes multiple blocking issues in the startup path so the full Ink TUI can work locally.
+A **locally runnable version** repaired from the leaked Claude Code source, with support for any Anthropic-compatible API endpoint (MiniMax, OpenRouter, etc.). Beyond the full TUI, we've also completed Computer Use (macOS / Windows), built a GUI **desktop app**, and enabled **full remote control** via Telegram / Feishu.
 
 <p align="center">
-  <a href="#features">Features</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">Global Usage</a> · <a href="#more-documentation">More Docs</a>
+  <a href="#features">Features</a> · <a href="#desktop-preview">Desktop</a> · <a href="#architecture-overview">Architecture</a> · <a href="#quick-start">Quick Start</a> · <a href="docs/en/guide/env-vars.md">Env Vars</a> · <a href="docs/en/guide/faq.md">FAQ</a> · <a href="docs/en/guide/global-usage.md">Global Usage</a> · <a href="#more-documentation">More Docs</a>
 </p>
 
 ---
@@ -38,6 +36,7 @@ A **locally runnable version** repaired from the leaked Claude Code source, with
 - **Skills System** (extensible capability plugins, custom workflows) — [Usage Guide](docs/skills/01-usage-guide.md) | [Implementation](docs/skills/02-implementation.md)
 - **Channel System** (remote Agent control via Telegram/Feishu/Discord IM platforms) — [Architecture](docs/en/channel/01-channel-system.md)
 - **Computer Use desktop control** — [Guide](docs/en/features/computer-use.md) | [Architecture](docs/en/features/computer-use-architecture.md)
+- **Desktop App** (Tauri 2 + React GUI client, multi-tab multi-session) — [Docs](docs/desktop/)
 - Fallback Recovery CLI mode (`CLAUDE_CODE_FORCE_RECOVERY_CLI=1 ./bin/claude-haha`)
 
 ---
@@ -56,6 +55,29 @@ A **locally runnable version** repaired from the leaked Claude Code source, with
     <td align="center" width="25%"><img src="docs/images/06-permission-security.png" alt="Permissions and security"><br><b>Permissions and security</b></td>
     <td align="center" width="25%"><img src="docs/images/07-services-layer.png" alt="Services layer"><br><b>Services layer</b></td>
     <td align="center" width="25%"><img src="docs/images/08-state-data-flow.png" alt="State and data flow"><br><b>State and data flow</b></td>
+  </tr>
+</table>
+
+---
+
+## Desktop Preview
+
+<p align="center">
+  <a href="https://github.com/NanmiCoder/cc-haha/releases"><img src="https://img.shields.io/badge/⬇_Download_Desktop-macOS_%7C_Windows-D97757?style=for-the-badge" alt="Download Desktop"></a>
+  &nbsp;
+  <a href="docs/desktop/04-installation.md"><img src="https://img.shields.io/badge/📖_Install_Guide-Guide-gray?style=for-the-badge" alt="Install Guide"></a>
+</p>
+
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="docs/images/desktop_ui/01_full_ui.png" alt="Main UI"><br><b>Main Interface</b></td>
+    <td align="center" width="33%"><img src="docs/images/desktop_ui/02_edit_code.png" alt="Code Editing"><br><b>Code Editing & Diff View</b></td>
+    <td align="center" width="33%"><img src="docs/images/desktop_ui/03_ask_question_and_permission.png" alt="Permission Control"><br><b>Permission Control & AI Questions</b></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/images/desktop_ui/05_settings.png" alt="Provider Settings"><br><b>Multi-Provider Management</b></td>
+    <td align="center" width="33%"><img src="docs/images/desktop_ui/08_scheduled_task.png" alt="Scheduled Tasks"><br><b>Scheduled Tasks</b></td>
+    <td align="center" width="33%"><img src="docs/images/desktop_ui/07_im.png" alt="IM Adapters"><br><b>IM Adapters (Telegram / Feishu)</b></td>
   </tr>
 </table>
 
@@ -116,6 +138,42 @@ Add `bin/` to your PATH to run from any directory. See [Global Usage Guide](docs
 export PATH="$HOME/path/to/claude-code-haha/bin:$PATH"
 ```
 
+### 5. Desktop Development
+
+If you are developing or testing the `desktop/` frontend, start both the API server and the desktop frontend.
+
+#### 5.1 Start the API server
+
+```bash
+cd /Users/nanmi/workspace/myself_code/claude-code-haha
+SERVER_PORT=3456 bun run src/server/index.ts
+```
+
+Optional health check:
+
+```bash
+curl http://127.0.0.1:3456/health
+```
+
+#### 5.2 Start the desktop frontend
+
+```bash
+cd /Users/nanmi/workspace/myself_code/claude-code-haha/desktop
+bun run dev --host 127.0.0.1 --port 2024
+```
+
+Then open:
+
+```text
+http://127.0.0.1:2024
+```
+
+#### 5.3 Notes
+
+- If port `3456` is already occupied by an old server process, run `lsof -nP -iTCP:3456 -sTCP:LISTEN`, find the PID, then `kill <PID>`.
+- For chat testing, create a fresh session and re-select a real working directory.
+- If an old session points to a deleted directory, the server will return `Working directory does not exist`. That is separate from whether the API server is running.
+
 ---
 
 ## Tech Stack
@@ -142,10 +200,44 @@ export PATH="$HOME/path/to/claude-code-haha/bin:$PATH"
 | [Skills System](docs/skills/01-usage-guide.md) | Extensible capability plugins, custom workflows and conditional activation |
 | [Channel System](docs/en/channel/01-channel-system.md) | Remote Agent control via Telegram/Feishu/Discord IM platforms |
 | [Computer Use](docs/en/features/computer-use.md) | Desktop control (screenshots, mouse, keyboard) — [Architecture](docs/en/features/computer-use-architecture.md) |
+| [Desktop App](docs/desktop/) | Tauri 2 + React GUI client — [Quick Start](docs/desktop/01-quick-start.md) \| [Architecture](docs/desktop/02-architecture.md) \| [Installation](docs/desktop/04-installation.md) |
 | [Global Usage](docs/en/guide/global-usage.md) | Run claude-haha from any directory |
 | [FAQ](docs/en/guide/faq.md) | Common error troubleshooting |
 | [Source Fixes](docs/en/reference/fixes.md) | Fixes compared with the original leaked source |
 | [Project Structure](docs/en/reference/project-structure.md) | Code directory structure |
+
+---
+
+## Sponsorship & Partnership
+
+This project is maintained in the author's spare time. Corporate or individual sponsorships are welcome to support ongoing development. Custom features, integrations, and business partnerships are also open for discussion.
+
+📧 **Contact**: relakkes@gmail.com
+
+---
+
+## ☕ Buy Me a Coffee
+
+If this project helps you, consider buying me a coffee — every bit of support keeps this project going ❤️
+
+<table>
+<tr>
+<td align="center" width="33%">
+<img src="docs/images/donate/wechat_pay.jpeg" width="250" alt="WeChat Pay"><br>
+<b>WeChat Pay</b>
+</td>
+<td align="center" width="33%">
+<img src="docs/images/donate/zfb_pay.png" width="250" alt="Alipay"><br>
+<b>Alipay</b>
+</td>
+<td align="center" width="33%">
+<a href="https://buymeacoffee.com/relakkes" target="_blank">
+<img src="docs/images/donate/bmc_button.png" width="250" alt="Buy Me a Coffee">
+</a><br>
+<b>Buy Me a Coffee</b>
+</td>
+</tr>
+</table>
 
 ---
 
