@@ -571,11 +571,16 @@ export async function handlePromptSubmit(
           (cmd.mode === 'task-notification'
             ? ({ kind: 'task-notification' } as const)
             : undefined)
+        // 学习批注：如何理解task-notification，任务通知类输入，用途：
+        // 1. 告知user，在ui中显示为通知；
+        // 2. 告知llm，作为一条新的上下文输入，例如让模型知道后台任务有结果了，该继续处理了 
+        // 后台 task / agent 异步完成后回来的通知，才会被包装成 task-notification
         if (origin) {
           for (const m of result.messages) {
             if (m.type === 'user') m.origin = origin
           }
         }
+        // 空数组
         newMessages.push(...result.messages)
         if (isFirst) {
           shouldQuery = result.shouldQuery

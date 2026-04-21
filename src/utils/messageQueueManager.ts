@@ -18,6 +18,7 @@ import { extractTextContent } from './messages.js'
 import { objectGroupBy } from './objectGroupBy.js'
 import { recordQueueOperation } from './sessionStorage.js'
 import { createSignal } from './signal.js'
+import { logForLearning } from './learningDebugLog.js'
 
 export type SetAppState = (f: (prev: AppState) => AppState) => void
 
@@ -131,6 +132,10 @@ export function enqueue(command: QueuedCommand): void {
   logOperation(
     'enqueue',
     typeof command.value === 'string' ? command.value : undefined,
+  )
+  logForLearning(
+    "messageQueueManager.ts enqueue ...{}", 
+    typeof command.value === 'string' ? command.value : undefined
   )
 }
 

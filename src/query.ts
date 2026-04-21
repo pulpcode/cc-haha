@@ -110,6 +110,7 @@ import {
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
+import { logForLearning } from './utils/learningDebugLog.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
@@ -277,6 +278,14 @@ async function* queryLoop(
     pendingToolUseSummary: undefined,
     transition: undefined,
   }
+
+  logForLearning('turn:start turnCount={} transition={} messages={}',
+    state.turnCount,
+    state.transition?.reason ?? 'initial',
+    state.messages.length,
+  )
+
+
   const budgetTracker = feature('TOKEN_BUDGET') ? createBudgetTracker() : null
 
   // task_budget.remaining tracking across compaction boundaries. Undefined
@@ -319,6 +328,12 @@ async function* queryLoop(
       stopHookActive,
       turnCount,
     } = state
+    logForLearning(
+      'turn:enter turnCount={} transition={} messages={}',
+      turnCount,
+      state.transition?.reason ?? 'initial',
+      messages.length,
+    )
 
     // Skill discovery prefetch — per-iteration (uses findWritePivot guard
     // that returns early on non-write iterations). Discovery runs while the
@@ -1261,6 +1276,11 @@ async function* queryLoop(
       // error → hook blocking → retry → error → …
       if (lastMessage?.isApiErrorMessage) {
         void executeStopFailureHooks(lastMessage, toolUseContext)
+        logForLearning(
+          'turn:end turnCount={} reason={}',
+          turnCount,
+          'completed_api_error',
+        )
         return { reason: 'completed' }
       }
 
@@ -1354,6 +1374,7 @@ async function* queryLoop(
         }
       }
 
+      logForLearning('turn:end turnCount={} reason={}', turnCount, 'completed')
       return { reason: 'completed' }
     }
 
@@ -1512,11 +1533,13 @@ async function* queryLoop(
           turnCount: nextTurnCountOnAbort,
         })
       }
+      logForLearning('turn:end turnCount={} reason={}', turnCount, 'aborted_tools')
       return { reason: 'aborted_tools' }
     }
 
     // If a hook indicated to prevent continuation, stop here
     if (shouldPreventContinuation) {
+      logForLearning('turn:end turnCount={} reason={}', turnCount, 'hook_stopped')
       return { reason: 'hook_stopped' }
     }
 
@@ -1677,6 +1700,13 @@ async function* queryLoop(
 
     // Each time we have tool results and are about to recurse, that's a turn
     const nextTurnCount = turnCount + 1
+    logForLearning(
+      'turn:continue from={} to={} assistantMessages={} toolResults={}',
+      turnCount,
+      nextTurnCount,
+      assistantMessages.length,
+      toolResults.length,
+    )
 
     // Periodic task summary for `claude ps` — fires mid-turn so a
     // long-running agent still refreshes what it's working on. Gated
@@ -1708,6 +1738,12 @@ async function* queryLoop(
         maxTurns,
         turnCount: nextTurnCount,
       })
+      logForLearning(
+        'turn:end turnCount={} reason={} nextTurnCount={}',
+        turnCount,
+        'max_turns',
+        nextTurnCount,
+      )
       return { reason: 'max_turns', turnCount: nextTurnCount }
     }
 
