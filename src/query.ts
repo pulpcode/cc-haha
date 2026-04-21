@@ -53,6 +53,7 @@ import {
   createToolUseSummaryMessage,
   createMicrocompactBoundaryMessage,
   stripSignatureBlocks,
+  extractTextContent,
 } from './utils/messages.js'
 import { generateToolUseSummary } from './services/toolUseSummary/toolUseSummaryGenerator.js'
 import { prependUserContext, appendSystemContext } from './utils/api.js'
@@ -177,6 +178,32 @@ function isWithheldMaxOutputTokens(
   msg: Message | StreamEvent | undefined,
 ): msg is AssistantMessage {
   return msg?.type === 'assistant' && msg.apiError === 'max_output_tokens'
+}
+
+function getQueuedCommandText(cmd: {
+  value: string | readonly { readonly type: string }[]
+}): string {
+  return typeof cmd.value === 'string'
+    ? cmd.value
+    : extractTextContent(cmd.value, '\n')
+}
+
+function formatQueuedCommandPreview(cmd: {
+  mode: string
+  priority?: string
+  uuid?: string
+  agentId?: string
+  value: string | readonly { readonly type: string }[]
+}): string {
+  const normalized = getQueuedCommandText(cmd).replaceAll(/\s+/g, ' ').trim()
+  const preview =
+    normalized.length === 0
+      ? '[non-text content]'
+      : normalized.length > 160
+        ? `${normalized.slice(0, 160)}... [truncated ${normalized.length - 160} more chars]`
+        : normalized
+
+  return `mode=${cmd.mode} priority=${cmd.priority ?? 'next'} agentId=${cmd.agentId ?? 'main'} uuid=${cmd.uuid ?? 'none'} value=${preview}`
 }
 
 export type QueryParams = {
@@ -1600,6 +1627,16 @@ async function* queryLoop(
       return cmd.mode === 'task-notification' && cmd.agentId === currentAgentId
     })
 
+    logForLearning(
+      'mid-turn drain snapshot threshold={} sleepRan={} querySource={} count={} commands={}',
+      sleepRan ? 'later' : 'next',
+      sleepRan,
+      querySource,
+      queuedCommandsSnapshot.length,
+      queuedCommandsSnapshot.map(formatQueuedCommandPreview),
+      { maxChars: 4000 },
+    )
+
     for await (const attachment of getAttachmentMessages(
       null,
       updatedToolUseContext,
@@ -1654,6 +1691,12 @@ async function* queryLoop(
     // Prompt and task-notification commands are converted to attachments above.
     const consumedCommands = queuedCommandsSnapshot.filter(
       cmd => cmd.mode === 'prompt' || cmd.mode === 'task-notification',
+    )
+    logForLearning(
+      'mid-turn drain consume count={} commands={}',
+      consumedCommands.length,
+      consumedCommands.map(formatQueuedCommandPreview),
+      { maxChars: 4000 },
     )
     if (consumedCommands.length > 0) {
       for (const cmd of consumedCommands) {

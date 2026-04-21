@@ -6,6 +6,7 @@ import {
 } from '../utils/messageQueueManager.js'
 import type { QueryGuard } from '../utils/QueryGuard.js'
 import { processQueueIfReady } from '../utils/queueProcessor.js'
+import { logForLearning } from 'src/utils/learningDebugLog.js'
 
 type UseQueueProcessorParams = {
   executeQueuedInput: (commands: QueuedCommand[]) => Promise<void>
@@ -36,6 +37,7 @@ export function useQueueProcessor({
     queryGuard.subscribe,
     queryGuard.getSnapshot,
   )
+  //queryGuard有三个状态：idle、dispatching、running
 
   // Subscribe to the unified command queue via useSyncExternalStore.
   // This guarantees re-render when the store changes, bypassing
@@ -45,6 +47,10 @@ export function useQueueProcessor({
     getCommandQueueSnapshot,
   )
 
+  // 事件驱动 + 响应式触发
+  // 订阅 queryGuard
+  // 订阅 commandQueue
+  // 在 effect 里检查条件，满足时消费一次队列
   useEffect(() => {
     if (isQueryActive) return
     if (hasActiveLocalJsxUI) return
@@ -57,6 +63,7 @@ export function useQueueProcessor({
     // snapshot change), isQueryActive is already true (dispatching) and the
     // guard above returns early. handlePromptSubmit's finally releases the
     // reservation via cancelReservation() (no-op if onQuery already ran end()).
+    logForLearning("useQueueProcessor触发消费...")
     processQueueIfReady({ executeInput: executeQueuedInput })
   }, [
     queueSnapshot,

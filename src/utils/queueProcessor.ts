@@ -1,10 +1,12 @@
 import type { QueuedCommand } from '../types/textInputTypes.js'
+import { logForLearning } from './learningDebugLog.js'
 import {
   dequeue,
   dequeueAllMatching,
   hasCommandsInQueue,
   peek,
 } from './messageQueueManager.js'
+import { extractTextContent } from './messages.js'
 
 type ProcessQueueParams = {
   executeInput: (commands: QueuedCommand[]) => Promise<void>
@@ -30,6 +32,26 @@ function isSlashCommand(cmd: QueuedCommand): boolean {
   return false
 }
 
+// 学习用代码
+function getCommandText(cmd: QueuedCommand): string {
+  return typeof cmd.value === 'string'
+    ? cmd.value
+    : extractTextContent(cmd.value, '\n')
+}
+
+// 学习用代码
+function formatCommandPreview(cmd: QueuedCommand): string {
+  const normalized = getCommandText(cmd).replaceAll(/\s+/g, ' ').trim()
+  const preview =
+    normalized.length === 0
+      ? '[non-text content]'
+      : normalized.length > 160
+        ? `${normalized.slice(0, 160)}... [truncated ${normalized.length - 160} more chars]`
+        : normalized
+
+  return `mode=${cmd.mode} priority=${cmd.priority ?? 'next'} uuid=${cmd.uuid ?? 'none'} value=${preview}`
+}
+
 /**
  * Processes commands from the queue.
  *
@@ -38,7 +60,7 @@ function isSlashCommand(cmd: QueuedCommand): boolean {
  * Bash commands need individual processing to preserve per-command error
  * isolation, exit codes, and progress UI. Other non-slash commands are
  * batched: all items **with the same mode** as the highest-priority item
- * are drained at once and passed as a single array to executeInput — each
+ * are drained at once and passed as a single array to executeInput - each
  * becomes its own user message with its own UUID. Different modes
  * (e.g. prompt vs task-notification) are never mixed because they are
  * treated differently downstream.
@@ -53,10 +75,10 @@ export function processQueueIfReady({
   executeInput,
 }: ProcessQueueParams): ProcessQueueResult {
   // This processor runs on the REPL main thread between turns. Skip anything
-  // addressed to a subagent — an unfiltered peek() returning a subagent
+  // addressed to a subagent - an unfiltered peek() returning a subagent
   // notification would set targetMode, dequeueAllMatching would find nothing
   // matching that mode with agentId===undefined, and we'd return processed:
-  // false with the queue unchanged → the React effect never re-fires and any
+  // false with the queue unchanged -> the React effect never re-fires and any
   // queued user prompt stalls permanently.
   const isMainThread = (cmd: QueuedCommand) => cmd.agentId === undefined
 
@@ -69,6 +91,11 @@ export function processQueueIfReady({
   // Bash commands need per-command error isolation, exit codes, and progress UI.
   if (isSlashCommand(next) || next.mode === 'bash') {
     const cmd = dequeue(isMainThread)!
+    logForLearning(
+      'command dequeue kind=single command={}',
+      formatCommandPreview(cmd),
+      { maxChars: 1200 },
+    )
     void executeInput([cmd])
     return { processed: true }
   }
@@ -80,6 +107,23 @@ export function processQueueIfReady({
   )
   if (commands.length === 0) {
     return { processed: false }
+  }
+
+  // Batch-drain commands with the same mode, for example prompt or task-notification.
+  if (commands.length > 1) {
+    logForLearning(
+      'commands dequeue kind=batch length={} commands={}',
+      commands.length,
+      commands.map(formatCommandPreview),
+      { maxChars: 4000 },
+    )
+  } else {
+    logForLearning(
+      'commands dequeue kind=single length={} command={}',
+      commands.length,
+      formatCommandPreview(commands[0]!),
+      { maxChars: 1200 },
+    )
   }
 
   void executeInput(commands)

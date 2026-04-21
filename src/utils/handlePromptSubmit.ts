@@ -118,7 +118,9 @@ export type HandlePromptSubmitParams = BaseExecutionParams & {
   skipSlashCommands?: boolean
 }
 
-//将原始输入变成待执行命令
+// 包含两条路径：
+// 1. 直接提交路径
+// 2. 队列执行路径：不是用户即时提交，而是队列里的命令被取出来执行了
 export async function handlePromptSubmit(
   params: HandlePromptSubmitParams,
 ): Promise<void> {
