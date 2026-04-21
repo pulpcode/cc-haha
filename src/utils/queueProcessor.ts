@@ -125,7 +125,7 @@ export function processQueueIfReady({
       { maxChars: 1200 },
     )
   }
-
+  //向上追溯，是REPL.ts中定义的useCallback，里面是handlePromptSubmit 
   void executeInput(commands)
   return { processed: true }
 }

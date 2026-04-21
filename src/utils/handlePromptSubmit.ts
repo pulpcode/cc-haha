@@ -124,7 +124,6 @@ export type HandlePromptSubmitParams = BaseExecutionParams & {
 export async function handlePromptSubmit(
   params: HandlePromptSubmitParams,
 ): Promise<void> {
-  logForLearning("handlePromptSubmit ...")
   //把传进来的 params 对象“拆包”成一堆局部变量，方便后面直接使用
   const {
     helpers,
@@ -148,6 +147,8 @@ export async function handlePromptSubmit(
     uuid,
     skipSlashCommands,
   } = params
+
+  logForLearning("handlePromptSubmit ... commands length:{}", commands.length)
 
   // logForLearning("messages:{}", messages)
 
@@ -537,7 +538,7 @@ export async function handlePromptSubmit(
     // mutable slot would be clobbered at the detached closure's first
     // await by this function's synchronous return path. See state.ts.
     await runWithWorkload(turnWorkload, async () => {
-      // logForLearning("executeUserInput runWithWorkload commands:{}", commands)
+      logForLearning("executeUserInput runWithWorkload commands length:{}", commands.length)
       for (let i = 0; i < commands.length; i++) {
         const cmd = commands[i]!
         const isFirst = i === 0

@@ -30,6 +30,7 @@ export type QueryDeps = {
   uuid: () => string
 }
 
+//【学习批注】productionDeps() 返回了一个对象字面量，而这个对象里的每个字段都是“函数值”
 export function productionDeps(): QueryDeps {
   return {
     callModel: queryModelWithStreaming,

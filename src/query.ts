@@ -254,6 +254,7 @@ export async function* query(
   | ToolUseSummaryMessage,
   Terminal
 > {
+  logForLearning("query.ts query....")
   const consumedCommandUuids: string[] = []
   const terminal = yield* queryLoop(params, consumedCommandUuids)
   // Only reached if queryLoop returned normally. Skipped on throw (error
@@ -277,6 +278,7 @@ async function* queryLoop(
   | ToolUseSummaryMessage,
   Terminal
 > {
+  logForLearning("query.ts queryLoop...")
   // Immutable params — never reassigned during the query loop.
   const {
     systemPrompt,
@@ -698,6 +700,8 @@ async function* queryLoop(
         try {
           let streamingFallbackOccured = false
           queryCheckpoint('query_api_streaming_start')
+          // 调用远端llm api
+          logForLearning("query.ts before deps.callModel streaming .....")
           for await (const message of deps.callModel({
             messages: prependUserContext(messagesForQuery, userContext),
             systemPrompt: fullSystemPrompt,
@@ -1626,7 +1630,12 @@ async function* queryLoop(
       // user prompts, even if someone stamps an agentId on one.
       return cmd.mode === 'task-notification' && cmd.agentId === currentAgentId
     })
-
+    /*
+    【学习批注】
+    先 getCommandsByMaxPriority(...) 从全局队列拿一个快照;
+    会过滤掉 slash command，slash command 不会在这里直接喂给模型;
+    主线程只拿 agentId === undefined 的队列项；子 agent 只拿发给自己的 task notification
+    */
     logForLearning(
       'mid-turn drain snapshot threshold={} sleepRan={} querySource={} count={} commands={}',
       sleepRan ? 'later' : 'next',
@@ -1637,6 +1646,7 @@ async function* queryLoop(
       { maxChars: 4000 },
     )
 
+    //【学习批注】这些队列项随后会通过 getAttachmentMessages(...) 变成 attachment message
     for await (const attachment of getAttachmentMessages(
       null,
       updatedToolUseContext,
@@ -1648,6 +1658,13 @@ async function* queryLoop(
       yield attachment
       toolResults.push(attachment)
     }
+    /**
+     * 【学习批注】
+     *  为什么放进 toolResults？
+     * 这里变量名有点误导。toolResults 到这一步已经不只是“工具结果”了，
+     * 而是“当前 assistant 之后、下一轮模型请求之前，要追加进去的所有 user-side follow-up messages”。
+     * 代码自己也写了这个约束：工具调用结束后再加这些消息，否则 API 会因为 tool_result 和普通 user message 交错而报错
+     */
 
     // Memory prefetch consume: only if settled and not already consumed on
     // an earlier iteration. If not settled yet, skip (zero-wait) and retry
@@ -1791,6 +1808,11 @@ async function* queryLoop(
     }
 
     queryCheckpoint('query_recursive_call')
+    /**
+     * 【学习批注】
+     * 如果发生了mid-turn drain queue，那么它们会被追加进这一轮的 toolResults，
+     * 再一起组成下一轮的 state.messages，下一次 while 迭代开始时，才会再调用一次
+     */
     const next: State = {
       messages: [...messagesForQuery, ...assistantMessages, ...toolResults],
       toolUseContext: toolUseContextWithQueryTracking,
