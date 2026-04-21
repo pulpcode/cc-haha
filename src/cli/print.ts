@@ -28,6 +28,7 @@ import {
 } from 'src/services/analytics/index.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
 import { logForDebugging } from 'src/utils/debug.js'
+import { logForLearning } from 'src/utils/learningDebugLog.js'
 import {
   logForDiagnosticsNoPII,
   withDiagnosticsTiming,
@@ -352,6 +353,14 @@ import { initializeGrowthBook } from '../services/analytics/growthbook.js'
 import { errorMessage, toError } from '../utils/errors.js'
 import { sleep } from '../utils/sleep.js'
 import { isExtractModeActive } from '../memdir/paths.js'
+
+/*
+  <猜测>
+  src/cli/print.ts 这个文件里：
+  主体大块逻辑是给 headless / non-interactive 模式用的
+  但文件里也放了一些“共享辅助函数 / SDK 控制处理函数”，这些不一定只能算 headless 专属
+  交互式 REPL 主流程并不走这个文件里的 run() 主循环
+*/
 
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -1850,11 +1859,13 @@ function runHeadlessStreaming(
               priority: 'later',
               isMeta: true,
             })
+            logForLearning("scheduleProactiveTick enqueue tickContent = {}", tickContent)
             void run()
           }, 0)
         }
       : undefined
 
+  // 监听高优先级“立即打断”的消息，并中断当前运行中的操作。不是启动 run()。
   // Abort the current operation when a 'now' priority message arrives.
   subscribeToCommandQueue(() => {
     if (abortController && getCommandsByMaxPriority('now').length > 0) {
@@ -1866,6 +1877,8 @@ function runHeadlessStreaming(
     if (running) {
       return
     }
+
+    logForLearning("print.ts run() ....")
 
     running = true
     runPhase = undefined
@@ -1933,6 +1946,7 @@ function runHeadlessStreaming(
       // into a single follow-up turn instead of N separate turns.
       const drainCommandQueue = async () => {
         while ((command = dequeue(isMainThread))) {
+          logForLearning("drainCommandQueue loop...")
           if (
             command.mode !== 'prompt' &&
             command.mode !== 'orphaned-permission' &&
@@ -1960,6 +1974,21 @@ function runHeadlessStreaming(
             }
           }
           const batchUuids = batch.map(c => c.uuid).filter(u => u !== undefined)
+          logForLearning(
+            'queue:batch mode={} batchSize={} headUuid={} uuids={}',
+            command.mode,
+            batch.length,
+            command.uuid ?? 'none',
+            batchUuids.length > 0 ? batchUuids.join(',') : 'none',
+          )
+          if (batch.length > 1) {
+            logForLearning(
+              'queue:batch:merged mode={} batchSize={} mergedUuid={}',
+              command.mode,
+              batch.length,
+              command.uuid ?? 'none',
+            )
+          }
 
           // QueryEngine will emit a replay for command.uuid (the last uuid in
           // the batch) via its messagesToAck path. Emit replays here for the
@@ -2724,6 +2753,7 @@ function runHeadlessStreaming(
           // the ask() call.
           workload: WORKLOAD_CRON,
         })
+        logForLearning("cronScheduler  enqueue prompt={}", prompt)
         void run()
       },
       isLoading: () => running || inputClosed,
@@ -4119,6 +4149,7 @@ function runHeadlessStreaming(
           }),
         }))
       }
+      logForLearning("print.ts runHeadlessStreaming void --run...")
       void run()
     }
     inputClosed = true
