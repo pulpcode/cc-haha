@@ -472,7 +472,7 @@ export async function handlePromptSubmit(
   setAbortController(abortController)
 
   function makeContext(): ProcessUserInputContext {
-    // 这个方法的名字落后于职责，
+    // 【学习批注】：这个方法的名字落后于职责，
     // 这个上下文是先给 processUserInput 用的，不是先给 tool 用的
     // processUserInput 在处理用户输入时，可能走三条路：
     // 1. 普通 prompt，后面进入模型/tool 流程
@@ -563,6 +563,7 @@ export async function handlePromptSubmit(
           isMeta: cmd.isMeta,
           skipAttachments: !isFirst,
         })
+        logForLearning("executeUserInput result: {}", result)
         // Stamp origin here rather than threading another arg through
         // processUserInput → processUserInputBase → processTextPrompt → createUserMessage.
         // Derive origin from mode for task-notifications — mirrors the origin
@@ -574,7 +575,7 @@ export async function handlePromptSubmit(
           (cmd.mode === 'task-notification'
             ? ({ kind: 'task-notification' } as const)
             : undefined)
-        // 学习批注：如何理解task-notification，任务通知类输入，用途：
+        // 【学习批注】：如何理解task-notification，任务通知类输入，用途：
         // 1. 告知user，在ui中显示为通知；
         // 2. 告知llm，作为一条新的上下文输入，例如让模型知道后台任务有结果了，该继续处理了 
         // 后台 task / agent 异步完成后回来的通知，才会被包装成 task-notification

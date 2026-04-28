@@ -521,10 +521,12 @@ async function processUserInputBase(
     inputString !== null &&
     (mode !== 'prompt' || effectiveSkipSlash || !inputString.startsWith('/'))
 
+  
+  logForLearning("processUserInputBase inputString:{}", inputString)
   queryCheckpoint('query_attachment_loading_start')
   const attachmentMessages = shouldExtractAttachments
     ? await toArray(
-        getAttachmentMessages(
+        getAttachmentMessages( // 收集附件上下文
           inputString,
           context,
           ideSelection ?? null,
@@ -535,6 +537,8 @@ async function processUserInputBase(
       )
     : []
   queryCheckpoint('query_attachment_loading_end')
+  logForLearning("processUserInputBase attachmentMessages:{}", attachmentMessages)
+
 
   // Bash commands
   if (inputString !== null && mode === 'bash') {

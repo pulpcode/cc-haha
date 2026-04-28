@@ -406,6 +406,8 @@ async function* queryLoop(
       queryTracking,
     }
 
+    logForLearning("queryLoop messages: {}", messages)
+
     let messagesForQuery = [...getMessagesAfterCompactBoundary(messages)]
 
     let tracking = autoCompactTracking
@@ -702,6 +704,7 @@ async function* queryLoop(
           queryCheckpoint('query_api_streaming_start')
           // 调用远端llm api
           logForLearning("query.ts before deps.callModel streaming .....")
+          logForLearning("messagesForQuery: {}", messagesForQuery)
           for await (const message of deps.callModel({
             messages: prependUserContext(messagesForQuery, userContext),
             systemPrompt: fullSystemPrompt,

@@ -2766,6 +2766,10 @@ export function REPL({
       });
     }
     queryCheckpoint('query_context_loading_start');
+    // 【学习批注】：
+    // getSystemPrompt() 的结果给到 defaultSystemPrompt
+    // getUserContext() 的结果先给到 baseUserContext，基础用户上下文，不是最终值，后面还会再合并成真正传给 query() 的 userContext
+    // getSystemContext() 的结果给到 systemContext，系统运行态上下文
     const [,, defaultSystemPrompt, baseUserContext, systemContext] = await Promise.all([
     // IMPORTANT: do this after setMessages() above, to avoid UI jank
     checkAndDisableBypassPermissionsIfNeeded(toolPermissionContext, setAppState),
@@ -2786,6 +2790,8 @@ export function REPL({
       defaultSystemPrompt,
       appendSystemPrompt
     });
+    logForLearning("onQueryImpl baseUserContext: {}", baseUserContext)
+    logForLearning("onQueryImpl systemContext: {}", systemContext)
     toolUseContext.renderedSystemPrompt = systemPrompt;
     queryCheckpoint('query_query_start');
     resetTurnHookDuration();

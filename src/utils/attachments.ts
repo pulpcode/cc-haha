@@ -770,6 +770,11 @@ export async function getAttachments(
   const isMainThread = !toolUseContext.agentId
 
   // Attachments which are added in response to on user input
+  // 【学习批注】这类 attachment 是 由当前用户输入触发的。只有 input 不为空时才会计算
+  // 例如：@file：用户输入@file文件引用
+  // mcp_resources：用户输入里引用了 MCP resource，把对应资源内容附加进去。
+  // agent_mentions：用户输入里提到了某个 agent，例如 @agent-xxx，转成 agent mention attachment。
+  // skill_discovery：实验性 skill 搜索。根据本次用户输入，找可能相关的 skill，告诉模型可以考虑使用
   const userInputAttachments = input
     ? [
         maybe('at_mentioned_files', () =>
@@ -814,6 +819,8 @@ export async function getAttachments(
       ]
     : []
 
+  // 【学习批注】这组为什么先执行？注释里说了，@mentioned files 可能会填充 nestedMemoryAttachmentTriggers，后面的 nested_memory 依赖它。
+
   // Process user input attachments first (includes @mentioned files)
   // This ensures files are added to nestedMemoryAttachmentTriggers before nested_memory processes them
   const userAttachmentResults = await Promise.all(userInputAttachments)
@@ -821,6 +828,9 @@ export async function getAttachments(
   // Thread-safe attachments available in sub-agents
   // NOTE: These must be created AFTER userInputAttachments completes to ensure
   // nestedMemoryAttachmentTriggers is populated before getNestedMemoryAttachments runs
+  // 【学习批注】线程安全的附件，可供子代理（sub-agents）使用
+  // 注意：这些附件必须在 userInputAttachments 执行完成之后再创建，以确保
+  // 在 getNestedMemoryAttachments 运行之前，nestedMemoryAttachmentTriggers 已经被正确填充（初始化/赋值）
   const allThreadAttachments = [
     // queuedCommands is already agent-scoped by the drain gate in query.ts —
     // main thread gets agentId===undefined, subagents get their own agentId.
@@ -936,6 +946,8 @@ export async function getAttachments(
       : []),
   ]
 
+  // 【学习批注】这类只给 主对话线程，subagent 不拿
+  // 为什么这些只给主线程？源码注释说得很直接：这些要么语义上只属于主对话，要么实现上不适合并发给 subagent 用
   // Attachments which are semantically only for the main conversation or don't have concurrency-safe implementations
   const mainThreadAttachments = isMainThread
     ? [
@@ -2710,6 +2722,7 @@ async function getSkillListingAttachments(
     return []
   }
 
+  // 【学习批注】系统不会每一轮都把同一批 skill 列表重复塞给模型，而是记住 已经通过 skill_listing 告诉过模型哪些 skill 了
   // Find skills we haven't sent yet
   const newSkills = allCommands.filter(cmd => !sent.has(cmd.name))
 
@@ -2961,6 +2974,8 @@ export async function* getAttachmentMessages(
   })
 
   for (const attachment of attachments) {
+    // 【学习批注】在 TypeScript 中，yield 是用在 生成器函数（generator function）
+    // 里的关键字，用来“暂停函数执行并返回一个值”
     yield createAttachmentMessage(attachment)
   }
 }

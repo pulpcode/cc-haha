@@ -568,7 +568,7 @@ ${CYBER_RISK_INSTRUCTION}`,
   const resolvedDynamicSections =
     await resolveSystemPromptSections(dynamicSections)
 
-  //内容参见：docs/backup/system_prompt_section_result.md
+  //【学习批注】内容参见：docs/backup/system_prompt_section_result.md
   //静态系统提示词骨架 + 可选边界标记 + 动态 section；
   //不过这还不是调用链的终点。在 getSystemPrompt() 之后，代码里还会继续再包装一层
   //
