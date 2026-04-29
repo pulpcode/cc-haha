@@ -538,7 +538,7 @@ async function processUserInputBase(
       )
     : []
   queryCheckpoint('query_attachment_loading_end')
-  logForLearning("processUserInputBase attachmentMessages:{}", attachmentMessages)
+  // logForLearning("processUserInputBase attachmentMessages:{}", attachmentMessages)
 
 
   // Bash commands

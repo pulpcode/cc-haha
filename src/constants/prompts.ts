@@ -471,7 +471,7 @@ export async function getSystemPrompt(
   const settings = getInitialSettings()
   const enabledTools = new Set(tools.map(_ => _.name))
 
-  //proactive： “主动式工作模式”，也就是 Claude 不只是等你一步一步下命令，而是会更像一个主动推进任务的代理
+  //【学习批注】proactive： “主动式工作模式”，也就是 Claude 不只是等你一步一步下命令，而是会更像一个主动推进任务的代理
   if (
     (feature('PROACTIVE') || feature('KAIROS')) &&
     proactiveModule?.isProactiveActive()
@@ -497,7 +497,7 @@ ${CYBER_RISK_INSTRUCTION}`,
     ].filter(s => s !== null)
   }
 
-  //注册名字为name的系统提示词片段，这个片段的内容怎么生成，由compute这个函数决定
+  //【学习批注】注册名字为name的系统提示词片段，这个片段的内容怎么生成，由compute这个函数决定
   const dynamicSections = [
     systemPromptSection('session_guidance', () =>
       getSessionSpecificGuidanceSection(enabledTools, skillToolCommands),

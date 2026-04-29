@@ -23,6 +23,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js';
 import { AbortError, errorMessage, toError } from '../../utils/errors.js';
 import type { CacheSafeParams } from '../../utils/forkedAgent.js';
 import { lazySchema } from '../../utils/lazySchema.js';
+import { logForLearning } from '../../utils/learningDebugLog.js';
 import { createUserMessage, extractTextContent, isSyntheticMessage, normalizeMessages } from '../../utils/messages.js';
 import { getAgentModel } from '../../utils/model/agent.js';
 import { permissionModeSchema } from '../../utils/permissions/PermissionMode.js';
@@ -248,6 +249,26 @@ export const AgentTool = buildTool({
     isolation,
     cwd
   }: AgentToolInput, toolUseContext, canUseTool, assistantMessage, onProgress?) {
+    logForLearning(
+      'AgentTool.call start description={} subagent_type={} prompt={} model={} run_in_background={} name={} team_name={} isolation={} cwd={} parentAgentId={} parentAgentType={} parentQuerySource={} parentMessages={} parentToolUseId={} assistantMessageId={} assistantMessageUuid={}',
+      description,
+      subagent_type ?? 'default',
+      prompt,
+      modelParam ?? 'inherit',
+      run_in_background ?? false,
+      name ?? '',
+      team_name ?? '',
+      isolation ?? '',
+      cwd ?? '',
+      toolUseContext.agentId ?? 'main',
+      toolUseContext.agentType ?? 'main',
+      toolUseContext.options.querySource ?? 'unknown',
+      toolUseContext.messages.length,
+      toolUseContext.toolUseId ?? '',
+      assistantMessage?.message?.id ?? '',
+      assistantMessage?.uuid ?? '',
+      { maxChars: 12000 },
+    );
     const startTime = Date.now();
     const model = isCoordinatorMode() ? undefined : modelParam;
 

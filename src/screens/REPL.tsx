@@ -2793,14 +2793,14 @@ export function REPL({
     // logForLearning("onQueryImpl baseUserContext: {}", baseUserContext)
     // logForLearning("onQueryImpl systemContext: {}", systemContext)
 
-    // 【学习批注】: 
+    // 【学习批注】:
     // 当：
-  // - 没有 mainThreadAgentDefinition
-  // - 没有 customSystemPrompt
-  // - 没有 appendSystemPrompt
-  // - coordinator mode 未开启
-  // - 本调用点没有传 overrideSystemPrompt
-  // 时，systemPrompt 与 defaultSystemPrompt 内容相同
+    // - 没有 mainThreadAgentDefinition
+    // - 没有 customSystemPrompt
+    // - 没有 appendSystemPrompt
+    // - coordinator mode 未开启
+    // - 本调用点没有传 overrideSystemPrompt
+    // 时，systemPrompt 与 defaultSystemPrompt 内容相同
 
     // logForLearning("----------------defaultSystemPrompt---------------------")
     // logForLearning("{}", defaultSystemPrompt)

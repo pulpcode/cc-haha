@@ -255,6 +255,7 @@ import {
   type RetryContext,
   withRetry,
 } from './withRetry.js'
+import { dumpForLearning, logForLearning } from 'src/utils/learningDebugLog.js'
 
 // Define a type that represents valid JSON values
 type JsonValue = string | number | boolean | null | JsonObject | JsonArray
@@ -1025,6 +1026,15 @@ async function* queryModel(
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
+  logForLearning("queryModel messages:{}", messages)
+  logForLearning("queryModel tools count:{}", tools.length)
+  // 【学习批注】queryModel-input-tools 是 内部运行时工具对象，类型是 Tools，它还没准备发给 LLM
+  // 也就是说它是 Claude Code 自己用来“执行工具、校验权限、转换结果”的对象
+
+  // 【学习批注】在测试时，一个有趣的事情，我只发了一句话，但是queryModel调用了两遍，其中一遍是generate_session_title
+  // dumpForLearning('queryModel-input-tools', tools, {
+  //   filePrefix: `query-${options.querySource}`,
+  // })
   // Check cheap conditions first — the off-switch await blocks on GrowthBook
   // init (~10ms). For non-Opus models (haiku, sonnet) this skips the await
   // entirely. Subscribers don't hit this path at all.
@@ -1394,6 +1404,10 @@ async function* queryModel(
     } as unknown as BetaToolUnion)
   }
   const allTools = [...toolSchemas, ...extraToolSchemas]
+  // 【学习批注】api-tools 是 真正准备放进 API 请求的工具 schema
+  // dumpForLearning('api-tools', allTools, {
+  //   filePrefix: `query-${options.querySource}`,
+  // })
 
   const isFastMode =
     isFastModeEnabled() &&
@@ -1795,6 +1809,9 @@ async function* queryModel(
         queryCheckpoint('query_client_creation_end')
 
         const params = paramsFromContext(context)
+        dumpForLearning('llm-request-params', params, {
+          filePrefix: `query-${options.querySource}-attempt-${attempt}`,
+        })
         captureAPIRequest(params, options.querySource) // Capture for bug reports
 
         maxOutputTokens = params.max_tokens

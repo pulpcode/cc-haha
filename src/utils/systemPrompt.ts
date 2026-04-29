@@ -53,6 +53,11 @@ export function buildEffectiveSystemPrompt({
   appendSystemPrompt: string | undefined
   overrideSystemPrompt?: string | null
 }): SystemPrompt {
+  // 【学习批注】普通情况在这三者里三选一作为“主基座”：
+  // - agentSystemPrompt
+  // - customSystemPrompt
+  // - defaultSystemPrompt
+  // 然后统一把 appendSystemPrompt 追加到最后
   if (overrideSystemPrompt) {
     return asSystemPrompt([overrideSystemPrompt])
   }

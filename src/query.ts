@@ -406,9 +406,13 @@ async function* queryLoop(
       queryTracking,
     }
 
-    logForLearning("queryLoop messages: {}", messages)
 
     let messagesForQuery = [...getMessagesAfterCompactBoundary(messages)]
+
+    logForLearning("queryLoop querySource:{}, agentId:{}, messagesForQuery: {}",
+        querySource,
+        toolUseContext.agentId ?? 'main',
+        messagesForQuery)
 
     let tracking = autoCompactTracking
 
@@ -704,7 +708,7 @@ async function* queryLoop(
           queryCheckpoint('query_api_streaming_start')
           // 调用远端llm api
           logForLearning("query.ts before deps.callModel streaming .....")
-          logForLearning("messagesForQuery: {}", messagesForQuery)
+          // logForLearning("messagesForQuery: {}", messagesForQuery)
           for await (const message of deps.callModel({
             messages: prependUserContext(messagesForQuery, userContext),
             systemPrompt: fullSystemPrompt,
@@ -879,6 +883,16 @@ async function* queryLoop(
                 content => content.type === 'tool_use',
               ) as ToolUseBlock[]
               if (msgToolUseBlocks.length > 0) {
+                logForLearning(
+                  'assistant tool_use blocks agentId={} agentType={} querySource={} assistantMessageId={} assistantMessageUuid={} toolUses={}',
+                  toolUseContext.agentId ?? 'main',
+                  toolUseContext.agentType ?? 'main',
+                  querySource,
+                  message.message.id,
+                  message.uuid,
+                  msgToolUseBlocks,
+                  { maxChars: 20000 },
+                )
                 toolUseBlocks.push(...msgToolUseBlocks)
                 needsFollowUp = true
               }
