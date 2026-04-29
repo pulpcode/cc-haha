@@ -2680,8 +2680,13 @@ async function getSkillListingAttachments(
     return []
   }
 
+  // 【学习批注】MCP server 也可以暴露 skill-like 的 prompt commands。
+  // MCP 和 skill 确实是两个不同的概念，但它们在用户体验层面被统一成了同一套 slash command + Skill tool 的调用界面。
+  // MCP server 通过 MCP Prompts 协议暴露的 prompt，在 Claude Code 内部被包装成类似 skill 的 command
   const cwd = getProjectRoot()
   const localCommands = await getSkillToolCommands(cwd)
+  // 【学习批注】这是一种适配器模式，把 MCP prompts 适配成 skill command，
+  // 复用同一套 listing 和触发机制，而不是为 MCP prompts 单独再建一套调用路径
   const mcpSkills = getMcpSkillCommands(
     toolUseContext.getAppState().mcp.commands,
   )

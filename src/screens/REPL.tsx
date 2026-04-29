@@ -2790,13 +2790,29 @@ export function REPL({
       defaultSystemPrompt,
       appendSystemPrompt
     });
-    logForLearning("onQueryImpl baseUserContext: {}", baseUserContext)
-    logForLearning("onQueryImpl systemContext: {}", systemContext)
+    // logForLearning("onQueryImpl baseUserContext: {}", baseUserContext)
+    // logForLearning("onQueryImpl systemContext: {}", systemContext)
+
+    // 【学习批注】: 
+    // 当：
+  // - 没有 mainThreadAgentDefinition
+  // - 没有 customSystemPrompt
+  // - 没有 appendSystemPrompt
+  // - coordinator mode 未开启
+  // - 本调用点没有传 overrideSystemPrompt
+  // 时，systemPrompt 与 defaultSystemPrompt 内容相同
+
+    // logForLearning("----------------defaultSystemPrompt---------------------")
+    // logForLearning("{}", defaultSystemPrompt)
+    // logForLearning("----------------systemPrompt---------------------")
+    // logForLearning("{}", systemPrompt)
+
     toolUseContext.renderedSystemPrompt = systemPrompt;
     queryCheckpoint('query_query_start');
     resetTurnHookDuration();
     resetTurnToolDuration();
     resetTurnClassifierDuration();
+    // logForLearning("messagesIncludingNewMessages: {}",messagesIncludingNewMessages)
     for await (const event of query({
       messages: messagesIncludingNewMessages,
       systemPrompt,

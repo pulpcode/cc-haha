@@ -153,6 +153,7 @@ export async function processUserInput({
   const appState = context.getAppState()
 
   /**
+   * 【学习批注】：
    * processUserInputBase(...) 做真正的输入分流
    * 这里才是核心处理层，它会判断这次输入到底是：
    * 普通文本 prompt
@@ -182,7 +183,7 @@ export async function processUserInput({
   )
   queryCheckpoint('query_process_user_input_base_end')
 
-  // 如果 processUserInputBase 说“不需要发起模型请求”，那就直接返回
+  // 【学习批注】如果 processUserInputBase 说“不需要发起模型请求”，那就直接返回
   if (!result.shouldQuery) {
     return result
   }
@@ -200,7 +201,7 @@ export async function processUserInput({
     context.requestPrompt, //这是一个“需要时向用户发起提问”的能力。某些 hook 不是纯校验，它可能会在执行过程中请求额外输入，这个函数就是给它用的。
   )) {
 
-    //根据 hook 结果决定：
+    //【学习批注】根据 hook 结果决定：
     // * 继续 query
     // * 停止
     // * 拦截
@@ -602,6 +603,7 @@ async function processUserInputBase(
 
   // Regular user prompt
   return addImageMetadataMessage(
+    // 【学习批注】：普通 prompt 会把 attachmentMessages 跟用户消息放一起
     processTextPrompt(
       normalizedInput,
       imageContentBlocks,
