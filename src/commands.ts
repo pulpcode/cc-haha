@@ -206,6 +206,7 @@ import {
   getCommandName,
   isCommandEnabled,
 } from './types/command.js'
+import { logForLearning } from './utils/learningDebugLog.js'
 
 // Re-export types from the centralized location
 export type {
@@ -545,7 +546,9 @@ export function clearCommandsCache(): void {
 export function getMcpSkillCommands(
   mcpCommands: readonly Command[],
 ): readonly Command[] {
+  // 【学习批注】TODO
   if (feature('MCP_SKILLS')) {
+    logForLearning("---getMcpSkillCommands----")
     return mcpCommands.filter(
       cmd =>
         cmd.type === 'prompt' &&

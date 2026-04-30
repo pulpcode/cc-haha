@@ -1,0 +1,64 @@
+# Learning Dump
+timestamp: 2026-04-30T07:24:22.815Z
+label: llm-request-params
+cwd: C:\Users\lau\workspace\cc-haha
+
+{
+  "model": "MiniMax-M2.7",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "@docs\\backup\\test.md 帮我解读这个文件"
+        }
+      ]
+    }
+  ],
+  "system": [
+    {
+      "type": "text",
+      "text": "x-anthropic-billing-header: cc_version=999.0.0-local.de0; cc_entrypoint=cli;"
+    },
+    {
+      "type": "text",
+      "text": "You are Claude Code, Anthropic's official CLI for Claude."
+    },
+    {
+      "type": "text",
+      "text": "Generate a concise, sentence-case title (3-7 words) that captures the main topic or goal of this coding session. The title should be clear enough that the user recognizes the session in a list. Use sentence case: capitalize only the first word and proper nouns.\n\nReturn JSON with a single \"title\" field.\n\nGood examples:\n{\"title\": \"Fix login button on mobile\"}\n{\"title\": \"Add OAuth authentication\"}\n{\"title\": \"Debug failing CI tests\"}\n{\"title\": \"Refactor API client error handling\"}\n\nBad (too vague): {\"title\": \"Code changes\"}\nBad (too long): {\"title\": \"Investigate and fix the issue where the login button does not respond on mobile devices\"}\nBad (wrong case): {\"title\": \"Fix Login Button On Mobile\"}"
+    }
+  ],
+  "tools": [],
+  "betas": [
+    "claude-code-20250219",
+    "interleaved-thinking-2025-05-14",
+    "redact-thinking-2026-02-12",
+    "context-management-2025-06-27",
+    "prompt-caching-scope-2026-01-05",
+    "effort-2025-11-24"
+  ],
+  "metadata": {
+    "user_id": "{\"device_id\":\"6102e3794322fbacf14ae0eb6d8bdfa8c684b7e96cea18ad2cdaa91e7fcd1a70\",\"account_uuid\":\"\",\"session_id\":\"870113e0-7fc2-4390-99c2-083a3f620ac0\"}"
+  },
+  "max_tokens": 32000,
+  "temperature": 1,
+  "output_config": {
+    "format": {
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}
